@@ -1,5 +1,6 @@
 from decimal import ROUND_HALF_UP, Decimal
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -83,6 +84,19 @@ class Contract(AuditedModel):
     def balance(self):
         return self.amount - self.certified_gross
 
+    @property
+    def advances_approved(self):
+        return self.advances.filter(status=ContractorAdvance.Status.APPROVED).aggregate(t=Sum("amount"))["t"] or ZERO
+
+    @property
+    def advances_recovered(self):
+        return self.certificates.filter(status=PaymentCertificate.Status.APPROVED) \
+            .aggregate(t=Sum("advance_recovered"))["t"] or ZERO
+
+    @property
+    def advance_outstanding(self):
+        return self.advances_approved - self.advances_recovered
+
 
 class PaymentCertificate(AuditedModel):
     """Interim payment certificate. Approving it books an approved subcontractor expense
@@ -104,6 +118,7 @@ class PaymentCertificate(AuditedModel):
     )
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT, editable=False)
     retention_amount = models.DecimalField(null=True, editable=False, **MONEY)
+    advance_recovered = models.DecimalField("mobilisation advance recovered (UGX)", default=0, editable=False, **MONEY)
     net_amount = models.DecimalField(null=True, editable=False, **MONEY)
     approved_by = models.ForeignKey("accounts.User", null=True, blank=True, editable=False, on_delete=models.PROTECT, related_name="+")
     approved_at = models.DateTimeField(null=True, blank=True, editable=False)
@@ -133,6 +148,75 @@ class PaymentCertificate(AuditedModel):
     @property
     def preview_net(self):
         return self.gross_amount - self.preview_retention
+
+
+class ContractorAdvance(AuditedModel):
+    """Mobilisation advance paid to a contractor before work is certified. Approving it books an
+    approved subcontractor expense (the Accountant pays it); later certificates recover it
+    automatically in proportion to the work certified."""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    contract = models.ForeignKey(Contract, on_delete=models.PROTECT, related_name="advances")
+    number = models.CharField(max_length=20, unique=True, blank=True, editable=False)
+    date = models.DateField(default=timezone.localdate)
+    amount = models.DecimalField("advance amount (UGX)", **MONEY)
+    purpose = models.CharField(max_length=300, default="Mobilisation advance")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT, editable=False)
+    approved_by = models.ForeignKey("accounts.User", null=True, blank=True, editable=False, on_delete=models.PROTECT, related_name="+")
+    approved_at = models.DateTimeField(null=True, blank=True, editable=False)
+
+    class Meta:
+        ordering = ["-id"]
+
+    def __str__(self):
+        return self.number or "New contractor advance"
+
+    def save(self, *args, **kwargs):
+        if not self.number:
+            last = ContractorAdvance.objects.order_by("-pk").values_list("pk", flat=True).first() or 0
+            self.number = f"MOB-{last + 1:04d}"
+        super().save(*args, **kwargs)
+
+    def max_allowed(self):
+        """What may still be advanced on this contract, as UGX."""
+        pct = Decimal(str(getattr(settings, "MOBILISATION_MAX_PERCENT", 20)))
+        cap = money(self.contract.amount * pct / 100)
+        used = self.contract.advances.exclude(status=self.Status.REJECTED).exclude(pk=self.pk) \
+            .aggregate(t=Sum("amount"))["t"] or ZERO
+        return cap - used, pct
+
+    def clean(self):
+        if not self.contract_id or self.amount is None:
+            return
+        if self.amount <= 0:
+            raise ValidationError({"amount": "The advance must be greater than zero."})
+        if self.contract.status != Contract.Status.ACTIVE:
+            raise ValidationError("Advances can only be raised against an active contract.")
+        room, pct = self.max_allowed()
+        if self.amount > room:
+            raise ValidationError({"amount": f"This would exceed the {pct:g}% mobilisation limit. "
+                                              f"At most UGX {max(room, ZERO):,.0f} can still be advanced on this contract."})
+
+    @property
+    def recovered(self):
+        """This advance's share of the contract's recoveries (recoveries are applied oldest first)."""
+        if self.status != self.Status.APPROVED:
+            return ZERO
+        left = self.contract.advances_recovered
+        for a in self.contract.advances.filter(status=self.Status.APPROVED).order_by("approved_at", "id"):
+            take = min(a.amount, left)
+            if a.pk == self.pk:
+                return take
+            left -= take
+        return ZERO
+
+    @property
+    def outstanding(self):
+        return self.amount - self.recovered if self.status == self.Status.APPROVED else ZERO
 
 
 # ------------------------------------------------------------ workers
@@ -214,6 +298,66 @@ class Attendance(AuditedModel):
             raise ValidationError({"phase": "This component belongs to a different project."})
 
 
+class WorkerAdvance(AuditedModel):
+    """Salary advance to a direct-hire worker. Approving it books an approved labour expense (the
+    Accountant pays it); each payroll then deducts it automatically, never more than a set share of
+    that period's pay, until it is cleared."""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    worker = models.ForeignKey(Worker, on_delete=models.PROTECT, related_name="advances")
+    number = models.CharField(max_length=20, unique=True, blank=True, editable=False)
+    date = models.DateField(default=timezone.localdate)
+    amount = models.DecimalField("advance amount (UGX)", **MONEY)
+    reason = models.CharField(max_length=300, blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT, editable=False)
+    approved_by = models.ForeignKey("accounts.User", null=True, blank=True, editable=False, on_delete=models.PROTECT, related_name="+")
+    approved_at = models.DateTimeField(null=True, blank=True, editable=False)
+
+    class Meta:
+        ordering = ["-id"]
+
+    def __str__(self):
+        return self.number or "New worker advance"
+
+    def save(self, *args, **kwargs):
+        if not self.number:
+            last = WorkerAdvance.objects.order_by("-pk").values_list("pk", flat=True).first() or 0
+            self.number = f"WADV-{last + 1:04d}"
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        if not self.worker_id or self.amount is None:
+            return
+        if self.amount <= 0:
+            raise ValidationError({"amount": "The advance must be greater than zero."})
+        w = self.worker
+        if w.contractor_id:
+            raise ValidationError("Salary advances are for direct-hire workers. Contractor workers are paid by their contractor.")
+        if not w.is_active:
+            raise ValidationError("This worker is no longer active.")
+        days = Decimal(str(getattr(settings, "WORKER_ADVANCE_MAX_DAYS", 26)))
+        limit = money(w.daily_wage * days)
+        if w.daily_wage <= 0:
+            raise ValidationError("Set the worker's daily wage first.")
+        if self.amount > limit:
+            raise ValidationError({"amount": f"The limit is {days:g} days of wages (UGX {limit:,.0f}) for this worker."})
+        open_ones = self.worker.advances.exclude(status=self.Status.REJECTED).exclude(pk=self.pk)
+        if any(a.status == self.Status.DRAFT or a.outstanding > 0 for a in open_ones):
+            raise ValidationError("This worker already has an advance that is waiting for approval or not yet repaid.")
+
+    @property
+    def repaid(self):
+        return PayrollLine.objects.filter(advance=self).aggregate(t=Sum("advance_deducted"))["t"] or ZERO
+
+    @property
+    def outstanding(self):
+        return self.amount - self.repaid if self.status == self.Status.APPROVED else ZERO
+
+
 # ------------------------------------------------------------ payroll
 class Payroll(AuditedModel):
     """Wages for direct-hire workers over a period, built from unpaid attendance.
@@ -260,7 +404,16 @@ class Payroll(AuditedModel):
 
     @property
     def total(self):
+        """Gross wages."""
         return sum((l.total for l in self.lines.all()), ZERO)
+
+    @property
+    def deductions(self):
+        return sum((l.advance_deducted for l in self.lines.all()), ZERO)
+
+    @property
+    def net_total(self):
+        return self.total - self.deductions
 
 
 class PayrollLine(models.Model):
@@ -269,10 +422,18 @@ class PayrollLine(models.Model):
     days_present = models.DecimalField(max_digits=6, decimal_places=2)
     regular_pay = models.DecimalField(**MONEY)
     overtime_pay = models.DecimalField(**MONEY)
+    advance = models.ForeignKey("WorkerAdvance", null=True, blank=True, editable=False, on_delete=models.PROTECT, related_name="+")
+    advance_deducted = models.DecimalField(default=0, editable=False, **MONEY)
 
     @property
     def total(self):
+        """Gross wages earned."""
         return self.regular_pay + self.overtime_pay
+
+    @property
+    def net(self):
+        """Gross wages less any salary-advance repayment: the cash actually paid."""
+        return self.total - self.advance_deducted
 
     def __str__(self):
         return f"{self.worker.full_name}: {self.total:,.0f}"

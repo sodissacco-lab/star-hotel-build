@@ -30,6 +30,22 @@
     button { background:var(--navy); color:#fff; border:0; cursor:pointer; }
     .muted { color:var(--muted); }
     form.inline { display:inline; }
+    .msg { padding:10px 14px; border-radius:8px; margin:0 0 12px; background:#e7f6ee; color:var(--ok); border:1px solid #b7e3cc; }
+    .msg.error { background:#fdecea; color:var(--bad); border-color:#f5c2be; }
+    .errbox { background:#fdecea; color:var(--bad); border:1px solid #f5c2be; border-radius:8px; padding:10px 14px; margin:0 0 12px; }
+    .errbox ul { margin:4px 0 0 18px; padding:0; }
+    .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; }
+    a.tile { display:block; background:var(--card); border:1px solid var(--line); border-left:5px solid var(--gold); border-radius:10px; padding:16px; color:var(--text); text-decoration:none; }
+    a.tile b { display:block; font-size:1.1rem; color:var(--navy); margin-bottom:4px; }
+    .fw label { display:block; font-size:.85rem; color:var(--muted); margin:10px 0 3px; }
+    .fw input[type=text], .fw input[type=number], .fw input[type=date], .fw select, .fw textarea { width:100%; font-size:16px; padding:10px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+    .fw textarea { font:inherit; font-size:16px; }
+    .fw .row { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin:8px 0; }
+    .fw .row .two { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .fw button.big { width:100%; padding:14px; font-size:1.05rem; margin-top:14px; }
+    .fw button.alt { background:#fff; color:var(--navy); border:1px solid var(--navy); }
+    .fw .fielderr { color:var(--bad); font-size:.85rem; }
+    .seg label { display:inline-block; margin:0 8px 0 0; color:var(--text); font-size:1rem; }
   </style>
 </head>
 <body>
@@ -44,6 +60,8 @@
       <a href="{% url 'labour_report' %}{% if project %}?project={{ project.pk }}{% endif %}">Labour</a>
       <a href="{% url 'supplier_list' %}{% if project %}?project={{ project.pk }}{% endif %}">Suppliers</a>
       <a href="{% url 'receipt_list' %}{% if project %}?project={{ project.pk }}{% endif %}">Receipts</a>
+      <a href="{% url 'doc_gallery' %}{% if project %}?project={{ project.pk }}{% endif %}">Files</a>
+      <a href="{% url 'fw_home' %}{% if project %}?project={{ project.pk }}{% endif %}">Site entry</a>
       {% if user.is_staff %}<a href="{% url 'admin:index' %}">Records &amp; actions</a>{% endif %}
     {% endif %}
   </div>
@@ -55,6 +73,7 @@
   {% endif %}
 </header>
 <main>
+  {% for m in messages %}<div class="msg {{ m.tags }}">{{ m }}</div>{% endfor %}
   {% block content %}{% endblock %}
 </main>
 </body>

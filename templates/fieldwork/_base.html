@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="fw">
+<p><a href="{% url 'fw_home' %}?project={{ project.pk }}">&larr; Site entry</a>
+{% if projects.count > 1 %} &nbsp;·&nbsp; <form class="inline" method="get">
+  <select name="project" onchange="this.form.submit()">{% for p in projects %}<option value="{{ p.pk }}" {% if p.pk == project.pk %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select></form>{% endif %}</p>
+<h1>{% block heading %}{% endblock %} <span class="muted" style="font-size:.9rem">{{ project.name }}</span></h1>
+{% if errors %}<div class="errbox"><b>Please fix:</b><ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+{% block body %}{% endblock %}
+</div>
+{% endblock %}

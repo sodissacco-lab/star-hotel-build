@@ -1,0 +1,12 @@
+{% extends "fieldwork/_base.html" %}
+{% block heading %}Site diary{% endblock %}
+{% block body %}
+<form method="post">{% csrf_token %}
+  {{ form.non_field_errors }}
+  {% for f in form %}<label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% for e in f.errors %}<div class="fielderr">{{ e }}</div>{% endfor %}{% endfor %}
+  <h2>Work done today</h2>
+  {{ formset.management_form }}{{ formset.non_form_errors }}
+  {% for fm in formset %}<div class="row">{% for f in fm.visible_fields %}<label>{{ f.label }}</label>{{ f }}{% for e in f.errors %}<div class="fielderr">{{ e }}</div>{% endfor %}{% endfor %}</div>{% endfor %}
+  <button class="big" type="submit">Save site diary</button>
+</form>
+{% endblock %}

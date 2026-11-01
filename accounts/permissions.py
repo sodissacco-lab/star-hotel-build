@@ -27,12 +27,15 @@ CAPABILITIES = {
     # site work (also used by the mobile API)
     "raise_requisition": {R.ADMIN, R.SITE_ENGINEER, R.SUPERVISOR, R.STOREKEEPER, R.PROJECT_MANAGER, R.QUANTITY_SURVEYOR, R.PROCUREMENT},
     "record_diary": {R.ADMIN, R.SITE_ENGINEER, R.SUPERVISOR, R.PROJECT_MANAGER},
+    "attach_files": {R.ADMIN, R.SITE_ENGINEER, R.SUPERVISOR, R.STOREKEEPER, R.PROJECT_MANAGER, R.QUANTITY_SURVEYOR, R.PROCUREMENT, R.ACCOUNTANT},
     # workforce and contractors
     "manage_workers": {R.ADMIN, R.HR, R.PROJECT_MANAGER},
     "record_attendance": {R.ADMIN, R.SUPERVISOR, R.SITE_ENGINEER, R.HR, R.PROJECT_MANAGER},
     "build_payroll": {R.ADMIN, R.HR},
     "approve_payroll": {R.ADMIN, R.OWNER, R.PROJECT_MANAGER},
     "approve_certificate": {R.ADMIN, R.OWNER, R.PROJECT_MANAGER},
+    "approve_mobilisation": {R.ADMIN, R.OWNER, R.PROJECT_MANAGER},
+    "approve_worker_advance": {R.ADMIN, R.OWNER, R.PROJECT_MANAGER},
     "view_labour": {R.ADMIN, R.OWNER, R.PROJECT_MANAGER, R.HR, R.ACCOUNTANT, R.QUANTITY_SURVEYOR, R.AUDITOR},
     # stores
     "receive_goods": {R.ADMIN, R.STOREKEEPER, R.PROJECT_MANAGER},

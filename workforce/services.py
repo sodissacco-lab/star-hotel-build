@@ -10,6 +10,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Count, DecimalField, Sum, Value
 from django.db.models.functions import Coalesce
@@ -18,7 +19,7 @@ from django.utils import timezone
 from accounts.permissions import WorkflowError, require
 from finance.models import Category, Expense
 from workforce.models import (
-    Attendance, Contract, PaymentCertificate, Payroll, PayrollLine, money,
+    Attendance, Contract, ContractorAdvance, PaymentCertificate, Payroll, PayrollLine, WorkerAdvance, money,
 )
 
 ZERO = Decimal("0")
@@ -68,20 +69,32 @@ def approve_certificate(cert, user):
             f"UGX {contract.amount:,.0f}. Amend the contract first."
         )
     retention = money(cert.gross_amount * contract.retention_percent / 100)
-    net = cert.gross_amount - retention
+    # Mobilisation advance is recovered in proportion to the work certified, so it is fully
+    # recovered when the whole contract sum has been certified.
+    recovery = ZERO
+    outstanding = contract.advance_outstanding
+    if outstanding > 0 and contract.amount > 0:
+        recovery = money(cert.gross_amount * contract.advances_approved / contract.amount)
+        recovery = max(min(recovery, outstanding, cert.gross_amount - retention), ZERO)
+    net = cert.gross_amount - retention - recovery
+    desc = f"{contract.contractor.name}: {cert.description} ({contract.reference})"
+    if recovery:
+        desc += f" [less advance recovered {recovery:,.0f}]"
     Expense.objects.create(
         project=contract.project, phase=contract.phase, date=cert.date, category=Category.SUBCONTRACTOR,
-        description=f"{contract.contractor.name}: {cert.description} ({contract.reference})",
+        description=desc[:300],
         amount=net, reference=cert.number, status=Expense.Status.APPROVED,
         approved_by=user, approved_at=timezone.now(), created_by=user,
         source_type=cert._meta.label_lower, source_id=cert.pk,
     )
     cert.status = PaymentCertificate.Status.APPROVED
     cert.retention_amount = retention
+    cert.advance_recovered = recovery
     cert.net_amount = net
     cert.approved_by = user
     cert.approved_at = timezone.now()
-    cert.save(update_fields=["status", "retention_amount", "net_amount", "approved_by", "approved_at", "updated_at"])
+    cert.save(update_fields=["status", "retention_amount", "advance_recovered", "net_amount", "approved_by", "approved_at",
+                                "updated_at"])
     return cert
 
 
@@ -117,10 +130,19 @@ def fill_payroll(payroll, user):
         row["days"] += day_fraction(att)
         row["reg"] += reg
         row["ot"] += ot
+    cap = Decimal(str(getattr(settings, "WORKER_ADVANCE_DEDUCTION_PERCENT", 50))) / 100
     for row in per_worker.values():
+        gross = row["reg"] + row["ot"]
+        advance, deduction = None, ZERO
+        for adv in WorkerAdvance.objects.select_for_update().filter(
+                worker=row["worker"], status=WorkerAdvance.Status.APPROVED).order_by("approved_at", "id"):
+            if adv.outstanding > 0:
+                advance, deduction = adv, min(adv.outstanding, money(gross * cap))
+                break
         PayrollLine.objects.create(
             payroll=payroll, worker=row["worker"], days_present=row["days"],
             regular_pay=row["reg"], overtime_pay=row["ot"],
+            advance=advance if deduction > 0 else None, advance_deducted=deduction,
         )
     Attendance.objects.filter(pk__in=[a.pk for a in records]).update(payroll=payroll)
     return payroll
@@ -137,11 +159,13 @@ def approve_payroll(payroll, user):
     total = payroll.total
     if total <= 0:
         raise WorkflowError("The payroll is empty. Build it first.")
+    deductions = payroll.deductions
+    note = f", less salary advances recovered {deductions:,.0f}" if deductions else ""
     Expense.objects.create(
         project=payroll.project, date=payroll.period_end, category=Category.LABOUR,
         description=f"Wages {payroll.period_start:%d/%m/%Y} to {payroll.period_end:%d/%m/%Y} "
-                    f"({payroll.lines.count()} workers)",
-        amount=total, reference=payroll.number, status=Expense.Status.APPROVED,
+                    f"({payroll.lines.count()} workers{note})",
+        amount=total - deductions, reference=payroll.number, status=Expense.Status.APPROVED,
         approved_by=user, approved_at=timezone.now(), created_by=user,
         source_type=payroll._meta.label_lower, source_id=payroll.pk,
     )
@@ -150,6 +174,82 @@ def approve_payroll(payroll, user):
     payroll.approved_at = timezone.now()
     payroll.save(update_fields=["status", "approved_by", "approved_at", "updated_at"])
     return payroll
+
+
+# ------------------------------------------------------------ advances
+@transaction.atomic
+def approve_contractor_advance(adv, user):
+    require(user, "approve_mobilisation")
+    adv = ContractorAdvance.objects.select_for_update().get(pk=adv.pk)
+    if adv.status != ContractorAdvance.Status.DRAFT:
+        raise WorkflowError("Only draft advances can be approved.")
+    if adv.created_by_id == user.pk and not user.is_superuser:
+        raise WorkflowError("Segregation of duties: you cannot approve an advance you raised.")
+    contract = Contract.objects.select_for_update().get(pk=adv.contract_id)
+    if contract.status != Contract.Status.ACTIVE:
+        raise WorkflowError("The contract is not active.")
+    try:
+        adv.clean()
+    except DjangoValidationError as exc:
+        raise WorkflowError("; ".join(exc.messages))
+    Expense.objects.create(
+        project=contract.project, phase=contract.phase, date=adv.date, category=Category.SUBCONTRACTOR,
+        description=f"{contract.contractor.name}: {adv.purpose} ({contract.reference})"[:300],
+        amount=adv.amount, reference=adv.number, status=Expense.Status.APPROVED,
+        approved_by=user, approved_at=timezone.now(), created_by=user,
+        source_type=adv._meta.label_lower, source_id=adv.pk,
+    )
+    adv.status = ContractorAdvance.Status.APPROVED
+    adv.approved_by, adv.approved_at = user, timezone.now()
+    adv.save(update_fields=["status", "approved_by", "approved_at", "updated_at"])
+    return adv
+
+
+@transaction.atomic
+def reject_contractor_advance(adv, user):
+    require(user, "approve_mobilisation")
+    adv = ContractorAdvance.objects.select_for_update().get(pk=adv.pk)
+    if adv.status != ContractorAdvance.Status.DRAFT:
+        raise WorkflowError("Only draft advances can be rejected.")
+    adv.status = ContractorAdvance.Status.REJECTED
+    adv.save(update_fields=["status", "updated_at"])
+    return adv
+
+
+@transaction.atomic
+def approve_worker_advance(adv, user):
+    require(user, "approve_worker_advance")
+    adv = WorkerAdvance.objects.select_for_update().get(pk=adv.pk)
+    if adv.status != WorkerAdvance.Status.DRAFT:
+        raise WorkflowError("Only draft advances can be approved.")
+    if adv.created_by_id == user.pk and not user.is_superuser:
+        raise WorkflowError("Segregation of duties: you cannot approve an advance you raised.")
+    try:
+        adv.clean()
+    except DjangoValidationError as exc:
+        raise WorkflowError("; ".join(exc.messages))
+    Expense.objects.create(
+        project=adv.worker.project, date=adv.date, category=Category.LABOUR,
+        description=f"Salary advance: {adv.worker.full_name}"[:300],
+        amount=adv.amount, reference=adv.number, status=Expense.Status.APPROVED,
+        approved_by=user, approved_at=timezone.now(), created_by=user,
+        source_type=adv._meta.label_lower, source_id=adv.pk,
+    )
+    adv.status = WorkerAdvance.Status.APPROVED
+    adv.approved_by, adv.approved_at = user, timezone.now()
+    adv.save(update_fields=["status", "approved_by", "approved_at", "updated_at"])
+    return adv
+
+
+@transaction.atomic
+def reject_worker_advance(adv, user):
+    require(user, "approve_worker_advance")
+    adv = WorkerAdvance.objects.select_for_update().get(pk=adv.pk)
+    if adv.status != WorkerAdvance.Status.DRAFT:
+        raise WorkflowError("Only draft advances can be rejected.")
+    adv.status = WorkerAdvance.Status.REJECTED
+    adv.save(update_fields=["status", "updated_at"])
+    return adv
 
 
 # ------------------------------------------------------------ report
@@ -198,7 +298,10 @@ def labour_summary(project, today=None):
         contract_rows.append({
             "contract": c, "certified": certified, "retention": retention, "balance": c.amount - certified,
             "percent": (certified * 100 / c.amount) if c.amount else ZERO,
-            "paid": paid_by_contract.get(c.pk, ZERO), "unpaid": net_due - paid_by_contract.get(c.pk, ZERO),
+            "advance": c.advances_approved, "advance_recovered": c.advances_recovered,
+            "advance_outstanding": c.advance_outstanding,
+            "paid": paid_by_contract.get(c.pk, ZERO),
+            "unpaid": net_due - c.advances_recovered - paid_by_contract.get(c.pk, ZERO),
         })
 
     return {
@@ -207,3 +310,46 @@ def labour_summary(project, today=None):
         "by_phase": sorted(by_phase.items(), key=lambda kv: -kv[1]),
         "contractor_present_today": contractor_present_today, "contract_rows": contract_rows,
     }
+
+
+# ------------------------------------------------------------ daily attendance (web form and mobile API)
+class AttendanceBatchError(WorkflowError):
+    """One or more rows of a day's attendance were rejected; nothing was saved."""
+
+    def __init__(self, errors):
+        self.errors = errors
+        super().__init__("; ".join(errors))
+
+
+def record_attendance_day(project, day, entries, user):
+    """Record or correct a whole day's attendance, all or nothing.
+
+    entries: dicts with worker, status, hours_worked, overtime_hours, phase (optional), notes (optional).
+    Days already included in a payroll cannot be changed. Returns the number of rows saved.
+    """
+    require(user, "record_attendance")
+    errors, saved = [], 0
+    with transaction.atomic():
+        for e in entries:
+            worker = e["worker"]
+            if worker.project_id != project.pk:
+                errors.append(f"{worker.full_name}: not a worker of this project.")
+                continue
+            obj = Attendance.objects.filter(worker=worker, date=day).first()
+            if obj is None:
+                obj = Attendance(worker=worker, date=day, created_by=user)
+            elif obj.payroll_id:
+                errors.append(f"{worker.full_name}: already included in a payroll and cannot be changed.")
+                continue
+            obj.status, obj.hours_worked, obj.overtime_hours = e["status"], e["hours_worked"], e["overtime_hours"]
+            obj.phase, obj.notes, obj.updated_by = e.get("phase"), e.get("notes", ""), user
+            try:
+                obj.full_clean()
+            except DjangoValidationError as exc:
+                errors.append(f"{worker.full_name}: {'; '.join(exc.messages)}")
+                continue
+            obj.save()
+            saved += 1
+        if errors:  # roll the whole day back
+            raise AttendanceBatchError(errors)
+    return saved

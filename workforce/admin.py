@@ -4,7 +4,8 @@ from accounts.permissions import WorkflowError, can
 from core.admin import AuditedAdminMixin, run_workflow_action
 from workforce import services
 from workforce.models import (
-    Attendance, Contract, Contractor, PaymentCertificate, Payroll, PayrollLine, Worker,
+    Attendance, Contract, Contractor, ContractorAdvance, PaymentCertificate, Payroll, PayrollLine, Worker,
+    WorkerAdvance,
 )
 
 
@@ -17,13 +18,17 @@ class ContractorAdmin(AuditedAdminMixin, admin.ModelAdmin):
 
 @admin.register(Contract)
 class ContractAdmin(AuditedAdminMixin, admin.ModelAdmin):
-    list_display = ("reference", "contractor", "project", "amount", "certified", "status")
+    list_display = ("reference", "contractor", "project", "amount", "certified", "advance_due", "status")
     list_filter = ("project", "status")
     search_fields = ("reference", "contractor__name")
 
     @admin.display(description="Certified (UGX)")
     def certified(self, obj):
         return f"{obj.certified_gross:,.0f}"
+
+    @admin.display(description="Advance to recover (UGX)")
+    def advance_due(self, obj):
+        return f"{obj.advance_outstanding:,.0f}"
 
     def get_readonly_fields(self, request, obj=None):
         # The amount cannot be edited once certificates exist; amend by a new contract/variation.
@@ -34,9 +39,9 @@ class ContractAdmin(AuditedAdminMixin, admin.ModelAdmin):
 
 @admin.register(PaymentCertificate)
 class PaymentCertificateAdmin(AuditedAdminMixin, admin.ModelAdmin):
-    list_display = ("number", "contract", "date", "gross_amount", "retention_amount", "net_amount", "status")
+    list_display = ("number", "contract", "date", "gross_amount", "retention_amount", "advance_recovered", "net_amount", "status")
     list_filter = ("status", "contract__project")
-    readonly_fields = ("number", "status", "retention_amount", "net_amount", "approved_by", "approved_at")
+    readonly_fields = ("number", "status", "retention_amount", "advance_recovered", "net_amount", "approved_by", "approved_at")
     actions = ["approve_selected", "reject_selected"]
 
     def get_readonly_fields(self, request, obj=None):
@@ -57,6 +62,77 @@ class PaymentCertificateAdmin(AuditedAdminMixin, admin.ModelAdmin):
     @admin.action(description="Reject selected certificates")
     def reject_selected(self, request, queryset):
         run_workflow_action(request, queryset, services.reject_certificate, "rejected")
+
+
+@admin.register(ContractorAdvance)
+class ContractorAdvanceAdmin(AuditedAdminMixin, admin.ModelAdmin):
+    list_display = ("number", "contract", "date", "amount", "recovered_amount", "outstanding_amount", "status")
+    list_filter = ("status", "contract__project")
+    readonly_fields = ("number", "status", "approved_by", "approved_at")
+    actions = ["approve_selected", "reject_selected"]
+
+    @admin.display(description="Recovered (UGX)")
+    def recovered_amount(self, obj):
+        return f"{obj.recovered:,.0f}"
+
+    @admin.display(description="Still to recover (UGX)")
+    def outstanding_amount(self, obj):
+        return f"{obj.outstanding:,.0f}"
+
+    def get_readonly_fields(self, request, obj=None):
+        base = tuple(super().get_readonly_fields(request, obj))
+        if obj is not None and obj.status != ContractorAdvance.Status.DRAFT:
+            return base + ("contract", "date", "amount", "purpose")
+        return base
+
+    def has_delete_permission(self, request, obj=None):
+        if obj is not None and obj.status != ContractorAdvance.Status.DRAFT:
+            return False
+        return super().has_delete_permission(request, obj)
+
+    @admin.action(description="Approve selected advances (books an expense to be paid)")
+    def approve_selected(self, request, queryset):
+        run_workflow_action(request, queryset, services.approve_contractor_advance, "approved")
+
+    @admin.action(description="Reject selected advances")
+    def reject_selected(self, request, queryset):
+        run_workflow_action(request, queryset, services.reject_contractor_advance, "rejected")
+
+
+@admin.register(WorkerAdvance)
+class WorkerAdvanceAdmin(AuditedAdminMixin, admin.ModelAdmin):
+    list_display = ("number", "worker", "date", "amount", "repaid_amount", "outstanding_amount", "status")
+    list_filter = ("status", "worker__project")
+    search_fields = ("worker__full_name", "number")
+    readonly_fields = ("number", "status", "approved_by", "approved_at")
+    actions = ["approve_selected", "reject_selected"]
+
+    @admin.display(description="Repaid (UGX)")
+    def repaid_amount(self, obj):
+        return f"{obj.repaid:,.0f}"
+
+    @admin.display(description="Still owed (UGX)")
+    def outstanding_amount(self, obj):
+        return f"{obj.outstanding:,.0f}"
+
+    def get_readonly_fields(self, request, obj=None):
+        base = tuple(super().get_readonly_fields(request, obj))
+        if obj is not None and obj.status != WorkerAdvance.Status.DRAFT:
+            return base + ("worker", "date", "amount", "reason")
+        return base
+
+    def has_delete_permission(self, request, obj=None):
+        if obj is not None and obj.status != WorkerAdvance.Status.DRAFT:
+            return False
+        return super().has_delete_permission(request, obj)
+
+    @admin.action(description="Approve selected advances (books an expense to be paid)")
+    def approve_selected(self, request, queryset):
+        run_workflow_action(request, queryset, services.approve_worker_advance, "approved")
+
+    @admin.action(description="Reject selected advances")
+    def reject_selected(self, request, queryset):
+        run_workflow_action(request, queryset, services.reject_worker_advance, "rejected")
 
 
 @admin.register(Worker)
@@ -106,9 +182,13 @@ class AttendanceAdmin(AuditedAdminMixin, admin.ModelAdmin):
 class PayrollLineInline(admin.TabularInline):
     model = PayrollLine
     extra = 0
-    fields = ("worker", "days_present", "regular_pay", "overtime_pay")
+    fields = ("worker", "days_present", "regular_pay", "overtime_pay", "advance_deducted", "net_pay")
     readonly_fields = fields
     can_delete = False
+
+    @admin.display(description="Net pay")
+    def net_pay(self, obj):
+        return f"{obj.net:,.0f}"
 
     def has_add_permission(self, request, obj=None):
         return False
@@ -118,14 +198,22 @@ class PayrollLineInline(admin.TabularInline):
 class PayrollAdmin(AuditedAdminMixin, admin.ModelAdmin):
     """Add a payroll by choosing the project and period; the lines are built automatically."""
 
-    list_display = ("number", "project", "period_start", "period_end", "status", "total_amount")
+    list_display = ("number", "project", "period_start", "period_end", "status", "total_amount", "deduction_amount", "net_amount")
     list_filter = ("project", "status")
     inlines = [PayrollLineInline]
     actions = ["approve_selected", "issue_receipts_selected"]
 
-    @admin.display(description="Total (UGX)")
+    @admin.display(description="Gross wages (UGX)")
     def total_amount(self, obj):
         return f"{obj.total:,.0f}"
+
+    @admin.display(description="Advances deducted (UGX)")
+    def deduction_amount(self, obj):
+        return f"{obj.deductions:,.0f}"
+
+    @admin.display(description="Net to pay (UGX)")
+    def net_amount(self, obj):
+        return f"{obj.net_total:,.0f}"
 
     def get_readonly_fields(self, request, obj=None):
         base = ("number", "status", "approved_by", "approved_at")

@@ -14,6 +14,8 @@ from finance.models import Expense, Payment, Receipt
 
 PAYROLL = "workforce.payroll"
 CERTIFICATE = "workforce.paymentcertificate"
+CONTRACTOR_ADVANCE = "workforce.contractoradvance"
+WORKER_ADVANCE = "workforce.workeradvance"
 
 
 def _money(value):
@@ -82,9 +84,34 @@ def issue_for_payment(payment):
             snap = {
                 "kind": "contractor", "contract": c.reference, "certificate": cert.number,
                 "contract_amount": _money(c.amount), "certified_gross": _money(c.certified_gross),
-                "retention_held": _money(c.retention_held), "certificate_net": _money(expense.amount),
+                "retention_held": _money(c.retention_held), "advance_recovered": _money(cert.advance_recovered),
+                "advance_outstanding": _money(c.advance_outstanding), "certificate_net": _money(expense.amount),
                 "paid_this_certificate": _money(expense.paid_amount),
                 "balance_this_certificate": _money(expense.amount - expense.paid_amount),
+            }
+    elif expense.source_type == CONTRACTOR_ADVANCE:
+        from workforce.models import ContractorAdvance
+        adv = ContractorAdvance.objects.select_related("contract__contractor").filter(pk=expense.source_id).first()
+        if adv:
+            c = adv.contract
+            payee = dict(payee_type=Receipt.PayeeType.CONTRACTOR, payee_name=c.contractor.name, contractor=c.contractor)
+            snap = {
+                "kind": "contractor_advance", "contract": c.reference, "advance": adv.number,
+                "contract_amount": _money(c.amount), "this_advance": _money(adv.amount),
+                "paid_on_advance": _money(expense.paid_amount),
+                "balance_unpaid": _money(expense.amount - expense.paid_amount),
+                "advances_total": _money(c.advances_approved), "recovered": _money(c.advances_recovered),
+                "outstanding": _money(c.advance_outstanding),
+            }
+    elif expense.source_type == WORKER_ADVANCE:
+        from workforce.models import WorkerAdvance
+        adv = WorkerAdvance.objects.select_related("worker").filter(pk=expense.source_id).first()
+        if adv:
+            payee = dict(payee_type=Receipt.PayeeType.WORKER, payee_name=adv.worker.full_name, worker=adv.worker)
+            snap = {
+                "kind": "worker_advance", "advance": adv.number, "this_advance": _money(adv.amount),
+                "paid_on_advance": _money(expense.paid_amount), "repaid": _money(adv.repaid),
+                "outstanding": _money(adv.outstanding), "reason": adv.reason,
             }
     elif expense.supplier_id:
         payee = dict(payee_type=Receipt.PayeeType.SUPPLIER, payee_name=expense.supplier.name, supplier=expense.supplier)
@@ -112,16 +139,18 @@ def issue_worker_receipts(payroll, user):
     have = set(Receipt.objects.filter(payroll=payroll, voided=False).values_list("worker_id", flat=True))
     created = 0
     for line in payroll.lines.select_related("worker"):
-        if line.worker_id in have or line.total <= 0:
+        if line.worker_id in have or line.net <= 0:
             continue
+        advance_left = line.advance.outstanding if line.advance_id else Decimal("0")
         Receipt.objects.create(
             project=payroll.project, date=last.date, payee_type=Receipt.PayeeType.WORKER,
-            payee_name=line.worker.full_name, worker=line.worker, payroll=payroll, amount=line.total,
+            payee_name=line.worker.full_name, worker=line.worker, payroll=payroll, amount=line.net,
             method=last.method, reference=payroll.number,
             purpose=f"Wages {payroll.period_start:%d/%m/%Y} to {payroll.period_end:%d/%m/%Y} ({line.days_present:g} days)",
             snapshot={"kind": "worker", "days": f"{line.days_present:g}", "regular": _money(line.regular_pay),
-                      "overtime": _money(line.overtime_pay), "total": _money(line.total),
-                      "payroll": payroll.number},
+                      "overtime": _money(line.overtime_pay), "gross": _money(line.total),
+                      "advance_deducted": _money(line.advance_deducted), "advance_balance": _money(advance_left),
+                      "total": _money(line.net), "payroll": payroll.number},
             created_by=user, updated_by=user,
         )
         created += 1

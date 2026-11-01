@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Site entry {% if project %}<span class="muted" style="font-size:.9rem">{{ project.name }}</span>{% endif %}</h1>
+{% if projects.count > 1 %}<form method="get"><select name="project" onchange="this.form.submit()">{% for p in projects %}<option value="{{ p.pk }}" {% if p.pk == project.pk %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select></form><br>{% endif %}
+{% if not project %}<p class="muted">You have not been added to a project yet. Ask the administrator.</p>
+{% elif not tiles %}<p class="muted">Your role has no site-entry forms.</p>
+{% else %}<div class="tiles">{% for label, url, cap, text in tiles %}
+  <a class="tile" href="{% url url %}?project={{ project.pk }}"><b>{{ label }}</b>{{ text }}</a>{% endfor %}</div>{% endif %}
+{% endblock %}

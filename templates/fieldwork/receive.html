@@ -1,0 +1,16 @@
+{% extends "fieldwork/_base.html" %}
+{% block heading %}Receive {{ po.number }}{% endblock %}
+{% block body %}
+<p>Supplier: <b>{{ po.supplier }}</b></p>
+<form method="post">{% csrf_token %}
+  <label>Date</label><input type="date" name="date" value="{{ post.date|default:today|date:'Y-m-d' }}">
+  <label>Delivery note no.</label><input type="text" name="delivery_note" value="{{ post.delivery_note }}">
+  <label>Inspected by</label><input type="text" name="inspected_by" value="{{ post.inspected_by }}">
+  {% for r in rows %}<div class="row"><b>{{ r.line.material.name }}</b> <span class="muted">({{ r.line.material.unit.abbreviation }})</span><br>
+    <span class="muted">Ordered {{ r.line.quantity|floatformat:"-3" }} · received {{ r.received|floatformat:"-3" }} · outstanding {{ r.outstanding|floatformat:"-3" }}</span>
+    <div class="two"><div><label>Delivered now</label><input type="number" step="any" min="0" name="d{{ r.line.pk }}" value="{{ r.d }}"></div>
+    <div><label>Accepted (blank = all)</label><input type="number" step="any" min="0" name="a{{ r.line.pk }}" value="{{ r.a }}"></div></div></div>{% endfor %}
+  <label>Notes</label><textarea name="notes" rows="2">{{ post.notes }}</textarea>
+  <button class="big" type="submit">Book into stock</button>
+</form>
+{% endblock %}

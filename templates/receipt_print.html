@@ -71,6 +71,8 @@
       <tr><td>Contract {{ snap.contract }} - contract sum</td><td>{{ snap.contract_amount|floatformat:0 }}</td></tr>
       <tr><td>Certified to date (gross)</td><td>{{ snap.certified_gross|floatformat:0 }}</td></tr>
       <tr><td>Retention held</td><td>{{ snap.retention_held|floatformat:0 }}</td></tr>
+      {% if snap.advance_recovered and snap.advance_recovered != "0.00" %}<tr><td>Mobilisation advance recovered on this certificate</td><td>{{ snap.advance_recovered|floatformat:0 }}</td></tr>
+      <tr><td>Mobilisation advance still to be recovered</td><td>{{ snap.advance_outstanding|floatformat:0 }}</td></tr>{% endif %}
       <tr><td>Certificate {{ snap.certificate }} - net payable</td><td>{{ snap.certificate_net|floatformat:0 }}</td></tr>
       <tr><td>Paid on this certificate (incl. this payment)</td><td>{{ snap.paid_this_certificate|floatformat:0 }}</td></tr>
       <tr><td><b>Balance on this certificate</b></td><td><b>{{ snap.balance_this_certificate|floatformat:0 }}</b></td></tr>
@@ -81,7 +83,29 @@
       <tr><td>Days worked</td><td>{{ snap.days }}</td></tr>
       <tr><td>Regular pay</td><td>{{ snap.regular|floatformat:0 }}</td></tr>
       <tr><td>Overtime pay</td><td>{{ snap.overtime|floatformat:0 }}</td></tr>
+      {% if snap.advance_deducted and snap.advance_deducted != "0.00" %}<tr><td>Gross wages</td><td>{{ snap.gross|floatformat:0 }}</td></tr>
+      <tr><td>Less salary advance repaid</td><td>{{ snap.advance_deducted|floatformat:0 }}</td></tr>{% endif %}
       <tr><td><b>Total paid</b></td><td><b>{{ snap.total|floatformat:0 }}</b></td></tr>
+      {% if snap.advance_balance and snap.advance_balance != "0.00" %}<tr><td>Salary advance still to be repaid</td><td>{{ snap.advance_balance|floatformat:0 }}</td></tr>{% endif %}
+    </table>
+  {% elif snap.kind == "contractor_advance" %}
+    <div class="banner advance">MOBILISATION ADVANCE &ndash; to be recovered from future payment certificates</div>
+    <table class="acct" style="width:60%">
+      <tr><td>Contract {{ snap.contract }} - contract sum</td><td>{{ snap.contract_amount|floatformat:0 }}</td></tr>
+      <tr><td>Advance {{ snap.advance }}</td><td>{{ snap.this_advance|floatformat:0 }}</td></tr>
+      <tr><td>Paid on this advance (incl. this payment)</td><td>{{ snap.paid_on_advance|floatformat:0 }}</td></tr>
+      <tr><td>Unpaid part of this advance</td><td>{{ snap.balance_unpaid|floatformat:0 }}</td></tr>
+      <tr><td>All advances on this contract</td><td>{{ snap.advances_total|floatformat:0 }}</td></tr>
+      <tr><td>Recovered so far</td><td>{{ snap.recovered|floatformat:0 }}</td></tr>
+      <tr><td><b>Still to be recovered</b></td><td><b>{{ snap.outstanding|floatformat:0 }}</b></td></tr>
+    </table>
+  {% elif snap.kind == "worker_advance" %}
+    <div class="banner advance">SALARY ADVANCE &ndash; to be deducted from future wages</div>
+    <table class="acct" style="width:60%">
+      <tr><td>Advance {{ snap.advance }}</td><td>{{ snap.this_advance|floatformat:0 }}</td></tr>
+      <tr><td>Paid on this advance (incl. this payment)</td><td>{{ snap.paid_on_advance|floatformat:0 }}</td></tr>
+      <tr><td>Repaid so far</td><td>{{ snap.repaid|floatformat:0 }}</td></tr>
+      <tr><td><b>Still to be repaid</b></td><td><b>{{ snap.outstanding|floatformat:0 }}</b></td></tr>
     </table>
   {% endif %}
   {% endwith %}

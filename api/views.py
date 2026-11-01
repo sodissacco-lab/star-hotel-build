@@ -19,7 +19,9 @@ from inventory.models import Material, PurchaseOrder
 from procurement import services as req_services
 from procurement.models import Requisition
 from projects.models import SiteDiary
+from workforce import services as wf_services
 from workforce.models import Attendance, Worker
+from workforce.services import AttendanceBatchError
 
 
 def project_for(request, pk):
@@ -157,27 +159,12 @@ class AttendanceView(APIView):
         ser = s.AttendanceBulkSerializer(data=request.data, context={"project": project})
         ser.is_valid(raise_exception=True)
         date, entries = ser.validated_data["date"], ser.validated_data["entries"]
-        errors, saved = [], 0
-        with transaction.atomic():
-            for e in entries:
-                name = e["worker"].full_name
-                obj = Attendance.objects.filter(worker=e["worker"], date=date).first()
-                if obj is None:
-                    obj = Attendance(worker=e["worker"], date=date, created_by=request.user)
-                elif obj.payroll_id:
-                    errors.append(f"{name}: already included in a payroll and cannot be changed.")
-                    continue
-                obj.status, obj.hours_worked, obj.overtime_hours = e["status"], e["hours_worked"], e["overtime_hours"]
-                obj.phase, obj.notes, obj.updated_by = e.get("phase"), e["notes"], request.user
-                try:
-                    obj.full_clean()
-                except DjangoValidationError as exc:
-                    errors.append(f"{name}: {s.full_clean_message(exc)}")
-                    continue
-                obj.save()
-                saved += 1
-            if errors:  # all or nothing: roll back the day's entries
-                raise ValidationError({"entries": errors})
+        try:
+            saved = wf_services.record_attendance_day(project, date, entries, request.user)
+        except AttendanceBatchError as exc:
+            raise ValidationError({"entries": exc.errors})
+        except WorkflowError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
         return Response({"saved": saved, "date": str(date)}, status=status.HTTP_201_CREATED)
 
 
@@ -261,4 +248,3 @@ class PurchaseOrderAccountView(APIView):
                 "outstanding": _s(l["outstanding"]), "unit_price": _s(l["unit_price"]),
             } for l in a["lines"]],
         })
-    

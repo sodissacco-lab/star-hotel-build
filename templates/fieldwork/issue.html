@@ -1,0 +1,16 @@
+{% extends "fieldwork/_base.html" %}
+{% block heading %}Issue materials{% endblock %}
+{% block body %}
+<form method="post">{% csrf_token %}
+  <label>Date</label><input type="date" name="date" value="{{ post.date|default:today|date:'Y-m-d' }}">
+  <label>Work area</label><select name="phase"><option value="">-</option>{% for p in phases %}<option value="{{ p.pk }}" {% if post.phase == p.pk|stringformat:'s' %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select>
+  <label>Activity (e.g. column casting)</label><input type="text" name="activity" value="{{ post.activity }}">
+  <label>Requested by</label><input type="text" name="requested_by" value="{{ post.requested_by }}">
+  <h2>Materials</h2>
+  {% for s in slots %}<div class="row"><div class="two">
+    <div><label>Material</label><select name="m{{ s.i }}"><option value="">-</option>{% for o in options %}<option value="{{ o.pk }}" {% if s.m == o.pk|stringformat:'s' %}selected{% endif %}>{{ o.label }}</option>{% endfor %}</select></div>
+    <div><label>Quantity</label><input type="number" step="any" min="0" name="q{{ s.i }}" value="{{ s.q }}"></div></div></div>{% endfor %}
+  <label>Notes</label><textarea name="notes" rows="2">{{ post.notes }}</textarea>
+  <button class="big" type="submit">Issue from store</button>
+</form>
+{% endblock %}

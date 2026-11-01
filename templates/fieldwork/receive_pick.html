@@ -1,0 +1,6 @@
+{% extends "fieldwork/_base.html" %}
+{% block heading %}Receive goods{% endblock %}
+{% block body %}
+{% if not orders %}<p class="muted">No approved purchase orders are waiting for delivery.</p>{% endif %}
+<div class="tiles">{% for o in orders %}<a class="tile" href="{% url 'fw_receive' o.pk %}"><b>{{ o.number }}</b>{{ o.supplier }} · {{ o.order_date|date:"d/m/Y" }}<br><span class="muted">{{ o.get_status_display }}</span></a>{% endfor %}</div>
+{% endblock %}

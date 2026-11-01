@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Photos &amp; documents <span class="muted" style="font-size:.9rem">{{ project.name }}</span></h1>
+<form method="get" style="margin-bottom:12px">
+  {% if projects.count > 1 %}<select name="project" onchange="this.form.submit()">{% for p in projects %}<option value="{{ p.pk }}" {% if p.pk == project.pk %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select>{% else %}<input type="hidden" name="project" value="{{ project.pk }}">{% endif %}
+  <select name="kind" onchange="this.form.submit()"><option value="">All types</option>{% for v, l in kinds %}<option value="{{ v }}" {% if v == kind %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+  {% if can_upload %}<a class="tile" style="display:inline-block;padding:8px 14px;border-left-width:1px" href="{% url 'doc_upload' %}?project={{ project.pk }}">+ Add file</a>{% endif %}
+</form>
+{% if not items %}<p class="muted">Nothing has been uploaded yet.</p>{% endif %}
+<div class="grid">{% for a in items %}
+  <div class="card">
+    <a href="{% url 'doc_serve' a.pk %}" target="_blank">{% if a.is_image %}<img src="{% url 'doc_serve' a.pk %}" alt="{{ a.caption }}" style="width:100%;height:150px;object-fit:cover;border-radius:6px">{% else %}<div style="height:150px;display:flex;align-items:center;justify-content:center;background:#eef2f9;border-radius:6px;font-weight:700;color:var(--navy)">PDF</div>{% endif %}</a>
+    <div style="margin-top:6px"><b>{{ a.caption }}</b></div>
+    <div class="muted" style="font-size:.8rem">{{ a.get_kind_display }} · {{ a.created_at|date:"d/m/Y" }}{% if a.created_by %} · {{ a.created_by }}{% endif %}{% if a.diary %}<br>Diary {{ a.diary.date|date:"d/m/Y" }}{% endif %}{% if a.purchase_order %}<br>{{ a.purchase_order.number }}{% endif %}</div>
+  </div>{% endfor %}</div>
+{% endblock %}

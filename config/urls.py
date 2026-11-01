@@ -26,5 +26,7 @@ urlpatterns = [
     path("receipts/", finance_views.receipt_list, name="receipt_list"),
     path("receipts/print/", finance_views.receipt_batch, name="receipt_batch"),
     path("receipts/<int:pk>/", finance_views.receipt_print, name="receipt_print"),
+    path("files/", include("documents.urls")),
+    path("site/", include("fieldwork.urls")),
     path("labour/", workforce_views.labour_report, name="labour_report"),
 ]

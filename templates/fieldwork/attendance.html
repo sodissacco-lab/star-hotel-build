@@ -1,0 +1,22 @@
+{% extends "fieldwork/_base.html" %}
+{% block heading %}Attendance{% endblock %}
+{% block body %}
+<form method="get"><input type="hidden" name="project" value="{{ project.pk }}">
+  <label>Date</label><input type="date" name="date" value="{{ day|date:'Y-m-d' }}" onchange="this.form.submit()"></form>
+{% if not rows %}<p class="muted">No active workers are registered for this project.</p>{% else %}
+<form method="post">{% csrf_token %}<input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+  <label>Work area (optional)</label>
+  <select name="phase"><option value="">-</option>{% for p in phases %}<option value="{{ p.pk }}">{{ p.name }}</option>{% endfor %}</select>
+  {% for r in rows %}<div class="row">
+    <b>{{ r.worker.full_name }}</b>{% if r.worker.contractor %} <span class="muted">({{ r.worker.contractor }})</span>{% endif %}
+    {% if r.locked %}<span class="muted"> - already paid, locked</span>{% endif %}
+    <div class="seg" style="margin-top:6px">
+      <label><input type="radio" name="w{{ r.worker.pk }}_status" value="present" {% if r.status == 'present' %}checked{% endif %}> Present</label>
+      <label><input type="radio" name="w{{ r.worker.pk }}_status" value="absent" {% if r.status == 'absent' %}checked{% endif %}> Absent</label>
+    </div>
+    <div class="two"><div><label>Hours</label><input type="number" step="0.5" min="0" name="w{{ r.worker.pk }}_hours" value="{{ r.hours }}"></div>
+    <div><label>Overtime</label><input type="number" step="0.5" min="0" name="w{{ r.worker.pk }}_ot" value="{{ r.ot }}"></div></div>
+  </div>{% endfor %}
+  <button class="big" type="submit">Save attendance</button>
+</form>{% endif %}
+{% endblock %}

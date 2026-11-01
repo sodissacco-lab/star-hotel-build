@@ -1,0 +1,13 @@
+{% extends "fieldwork/_base.html" %}
+{% block heading %}Request materials{% endblock %}
+{% block body %}
+<form method="post">{% csrf_token %}
+  {{ form.non_field_errors }}
+  {% for f in form %}<label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% for e in f.errors %}<div class="fielderr">{{ e }}</div>{% endfor %}{% endfor %}
+  <h2>Materials needed</h2>
+  {{ formset.management_form }}{{ formset.non_form_errors }}
+  {% for fm in formset %}<div class="row"><div class="two">{% for f in fm.visible_fields %}<div><label>{{ f.label }}</label>{{ f }}{% for e in f.errors %}<div class="fielderr">{{ e }}</div>{% endfor %}</div>{% endfor %}</div></div>{% endfor %}
+  <button class="big" type="submit" name="action" value="submit">Submit for verification</button>
+  <button class="big alt" type="submit" name="action" value="draft">Save as draft</button>
+</form>
+{% endblock %}

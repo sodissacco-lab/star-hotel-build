@@ -80,11 +80,13 @@ recorded for headcount but are paid through their contractor's certificates, not
 BOQ import from Excel/CSV, equipment, quality and HSE,
 documents and photos, hotel room register, classification checklist, REST API and the Flutter mobile app.
 
-## Deployment notes
+## Deployment (Render, taajpalm.com)
 
-Set `DJANGO_DEBUG=0`, a long `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`, and the
-`DB_*` PostgreSQL variables. Run `python manage.py collectstatic` and serve with
-`gunicorn config.wsgi` behind Nginx with HTTPS. Take automated daily PostgreSQL backups.
+`render.yaml` describes the whole setup: a web service, a PostgreSQL database and a 1 GB disk for uploaded photos.
+Settings come from environment variables: `DJANGO_DEBUG=0`, `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`,
+`DJANGO_CSRF_TRUSTED_ORIGINS`, `DATABASE_URL`, `MEDIA_ROOT`. The site redirects to HTTPS. Before deploying, commit
+every app's `migrations` folder. Back up the database (Render's paid PostgreSQL keeps point-in-time backups) and
+the disk.
 
 ## BOQ import (added)
 
@@ -138,3 +140,18 @@ Every payment recorded in **Payments** automatically issues a numbered receipt (
 * Mobile API: `GET projects/<id>/suppliers/` and `GET projects/<id>/purchase-orders/<po>/account/`.
 
 Run `python manage.py makemigrations finance` then `migrate`. Goods already received on existing orders are unaffected; payments recorded earlier against goods expenses stay as they are.
+
+## Role access and site entry pages (added)
+- Staff status and admin permissions now follow the user's **role** (group "StarBuild: <role>"). Run `python manage.py sync_roles` once to apply this to existing users; changing a role in the admin re-applies it automatically. Contractors never get admin access.
+- `/site/` is a phone-friendly set of entry pages: site diary, daily attendance, requisition, material issue and goods received. Each page shows only if the user's role has the matching capability, and only for projects the user belongs to.
+
+## Photos and documents (added)
+- `/files/` lists project photos, delivery notes, receipts and drawings; `/files/upload/` adds one (jpg, png, webp or PDF, up to 8 MB), optionally linked to a site diary day or purchase order.
+- Files are stored in `media/` and are **never public**: they are served only through a login-protected view to members of the project. For production, back up `media/` (or move it to cloud storage).
+- Run `python manage.py makemigrations documents` then `migrate`.
+
+## Contractor and worker advances (added)
+- **Mobilisation advance** (admin > Contractor advances): up to `MOBILISATION_MAX_PERCENT` (20%) of the contract amount. Approved by the Project Manager/Owner/Admin (not the person who raised it); approval books an expense for the Accountant to pay. Each approved certificate recovers `gross x advances / contract amount` automatically, so the advance is cleared when the contract is fully certified.
+- **Salary advance** (admin > Worker advances): up to `WORKER_ADVANCE_MAX_DAYS` (26) days of the worker's wage, one open advance per worker. Each payroll deducts at most `WORKER_ADVANCE_DEDUCTION_PERCENT` (50%) of the worker's pay until it is repaid. The payroll expense and the worker's receipt use the net pay.
+- Settings can be overridden with environment variables of the same names.
+- Run `python manage.py makemigrations workforce` then `migrate`.

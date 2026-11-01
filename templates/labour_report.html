@@ -38,7 +38,7 @@
 <h2>Contracts</h2>
 <div class="table-wrap"><table>
   <tr><th>Contract</th><th>Contractor</th><th>Status</th><th class="num">Amount</th><th class="num">Certified</th>
-      <th class="num">%</th><th class="num">Retention held</th><th class="num">Paid</th><th class="num">Net still unpaid</th></tr>
+      <th class="num">%</th><th class="num">Retention held</th><th class="num">Advance to recover</th><th class="num">Paid</th><th class="num">Net still unpaid</th></tr>
   {% for r in contract_rows %}
   <tr>
     <td>{{ r.contract.reference }}</td><td>{{ r.contract.contractor }}</td><td>{{ r.contract.get_status_display }}</td>
@@ -46,10 +46,11 @@
     <td class="num">{{ r.certified|floatformat:0 }}</td>
     <td class="num">{{ r.percent|floatformat:0 }}</td>
     <td class="num">{{ r.retention|floatformat:0 }}</td>
+    <td class="num {% if r.advance_outstanding > 0 %}bad{% endif %}">{{ r.advance_outstanding|floatformat:0 }}</td>
     <td class="num">{{ r.paid|floatformat:0 }}</td>
     <td class="num {% if r.unpaid > 0 %}bad{% endif %}">{{ r.unpaid|floatformat:0 }}</td>
   </tr>
-  {% empty %}<tr><td colspan="9" class="muted">No contracts yet.</td></tr>{% endfor %}
+  {% empty %}<tr><td colspan="10" class="muted">No contracts yet.</td></tr>{% endfor %}
 </table></div>
 {% endif %}
 {% endblock %}

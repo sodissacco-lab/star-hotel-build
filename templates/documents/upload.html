@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="fw">
+<p><a href="{% url 'doc_gallery' %}?project={{ project.pk }}">&larr; Photos &amp; documents</a></p>
+<h1>Add a photo or document <span class="muted" style="font-size:.9rem">{{ project.name }}</span></h1>
+<form method="post" enctype="multipart/form-data">{% csrf_token %}
+  {{ form.non_field_errors }}
+  {% for f in form %}<label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% for e in f.errors %}<div class="fielderr">{{ e }}</div>{% endfor %}{% if f.help_text %}<div class="muted" style="font-size:.8rem">{{ f.help_text }}</div>{% endif %}{% endfor %}
+  <button class="big" type="submit">Upload</button>
+</form>
+<p class="muted">Photos (jpg, png, webp) and PDF only, up to 8 MB.</p>
+</div>
+{% endblock %}

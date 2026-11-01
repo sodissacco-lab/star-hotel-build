@@ -2,6 +2,7 @@
 import os
 from decimal import Decimal
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -23,6 +24,11 @@ def _csv(name, default=""):
 
 ALLOWED_HOSTS = _csv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 CSRF_TRUSTED_ORIGINS = _csv("DJANGO_CSRF_TRUSTED_ORIGINS")
+# Render gives every service its own address (e.g. starbuild.onrender.com); allow it automatically.
+_render_host = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+if _render_host:
+    ALLOWED_HOSTS.append(_render_host)
+    CSRF_TRUSTED_ORIGINS.append(f"https://{_render_host}")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -43,6 +49,8 @@ INSTALLED_APPS = [
     "procurement",
     "workforce",
     "api",
+    "fieldwork",
+    "documents",
 ]
 
 MIDDLEWARE = [
@@ -75,7 +83,20 @@ TEMPLATES = [
     },
 ]
 
-if os.environ.get("DB_NAME"):
+if os.environ.get("DATABASE_URL"):  # hosted PostgreSQL (Render, Railway ...)
+    _db = urlparse(os.environ["DATABASE_URL"])
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": unquote(_db.path.lstrip("/")),
+            "USER": unquote(_db.username or ""),
+            "PASSWORD": unquote(_db.password or ""),
+            "HOST": _db.hostname or "localhost",
+            "PORT": str(_db.port or 5432),
+            "CONN_MAX_AGE": 60,
+        }
+    }
+elif os.environ.get("DB_NAME"):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -119,15 +140,27 @@ STORAGES = {
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
 }
 MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT", BASE_DIR / "media"))  # on Render: the persistent disk
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# --- Security for the live site (HTTPS is terminated by the host's proxy) -----------
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SSL_REDIRECT", "1") == "1"
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_HSTS_SECONDS", "3600"))  # raise to 31536000 once HTTPS is proven
+    SECURE_REFERRER_POLICY = "same-origin"
 
 # --- StarBuild business rules -------------------------------------------------
 # Purchase orders above this value (UGX) need a user with the "approve_large_po"
 # capability (Project Owner/Director or System Administrator).
 # Advances to suppliers (payments beyond the value delivered)
 ADVANCE_MAX_PERCENT = Decimal(os.environ.get("ADVANCE_MAX_PERCENT", "50"))  # of the PO value, above this the Owner/Admin must approve
+MOBILISATION_MAX_PERCENT = Decimal(os.environ.get("MOBILISATION_MAX_PERCENT", "20"))  # contractor mobilisation advance, % of contract amount
+WORKER_ADVANCE_MAX_DAYS = int(os.environ.get("WORKER_ADVANCE_MAX_DAYS", "26"))  # salary advance limit, days of wages
+WORKER_ADVANCE_DEDUCTION_PERCENT = Decimal(os.environ.get("WORKER_ADVANCE_DEDUCTION_PERCENT", "50"))  # max share of a payroll period's pay recovered
 ADVANCE_ALERT_DAYS = int(os.environ.get("ADVANCE_ALERT_DAYS", "30"))  # flag advances with goods still undelivered after this long
 PO_APPROVAL_THRESHOLD_UGX = Decimal(os.environ.get("PO_APPROVAL_THRESHOLD_UGX", "5000000"))
 
