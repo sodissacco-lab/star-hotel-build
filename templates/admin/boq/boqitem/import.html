@@ -1,0 +1,40 @@
+{% extends "admin/base_site.html" %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Home</a> &rsaquo;
+  <a href="{% url 'admin:boq_boqitem_changelist' %}">BOQ items</a> &rsaquo; Import
+</div>
+{% endblock %}
+{% block content %}
+<div id="content-main">
+  <h1>Import Bill of Quantities</h1>
+  <p>Upload an Excel (.xlsx) or CSV file. The first rows must contain these column titles:</p>
+  <ul>
+    <li><b>code</b>, <b>description</b>, <b>unit</b>, <b>quantity</b>, <b>rate</b> (required)</li>
+    <li><b>phase</b> (the exact name of a construction component in this project) and <b>material</b> (a material code) are optional</li>
+  </ul>
+  <ul>
+    <li>Rows with no quantity and no rate (headings, sub-totals) are skipped.</li>
+    <li>Everything is checked first. If any row has a problem, <b>nothing</b> is saved and the problems are listed with their row numbers.</li>
+    <li>Item codes that already exist in the project are rejected. Existing quantities change only through variation orders.</li>
+    <li>In Excel, format the code column as <b>Text</b>, otherwise a code like 3.10 turns into 3.1.</li>
+  </ul>
+  <p><a href="sample/">Download a sample CSV</a></p>
+
+  {% if result and result.errors %}
+  <div class="errornote">
+    <p><b>{{ result.errors|length }}{% if result.more_errors %} (+{{ result.more_errors }} more){% endif %} problem(s) found:</b></p>
+    <ul>{% for e in result.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+    <p>{{ result.valid_rows }} row(s) were fine. {{ result.headings_skipped }} heading row(s) skipped.</p>
+  </div>
+  {% elif result and result.dry_run %}
+  <p><b>{{ result.valid_rows }}</b> item(s) are valid. {{ result.headings_skipped }} heading row(s) would be skipped.</p>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <input type="submit" value="Check / Import" class="default">
+  </form>
+</div>
+{% endblock %}

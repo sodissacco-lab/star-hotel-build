@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Suppliers – StarBuild{% endblock %}
+{% block content %}
+<form method="get" style="margin-bottom:8px">
+  <label class="muted">Project&nbsp;
+    <select name="project" onchange="this.form.submit()">
+      {% for p in projects %}<option value="{{ p.pk }}" {% if project and p.pk == project.pk %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+    </select>
+  </label>
+</form>
+<h1>Supplier accounts{% if project %} – {{ project.name }}{% endif %}</h1>
+<p class="muted">Worked out automatically from purchase orders, goods received and payments. <b>Advance</b> = paid but goods not yet delivered. <b>Balance due</b> = delivered but not yet paid.</p>
+<div class="table-wrap"><table>
+  <tr><th>Supplier</th><th class="num">Orders</th><th class="num">Ordered</th><th class="num">Delivered</th><th class="num">Paid</th><th class="num">Advance (undelivered)</th><th class="num">Balance due</th><th></th></tr>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.supplier.name }}</td><td class="num">{{ r.orders }}</td>
+    <td class="num">{{ r.ordered|floatformat:0 }}</td><td class="num">{{ r.delivered|floatformat:0 }}</td><td class="num">{{ r.paid|floatformat:0 }}</td>
+    <td class="num {% if r.advance %}bad{% endif %}">{{ r.advance|floatformat:0 }}</td>
+    <td class="num">{{ r.balance_due|floatformat:0 }}</td>
+    <td><a href="{% url 'supplier_statement' r.supplier.pk %}?project={{ project.pk }}">Statement</a></td>
+  </tr>
+  {% empty %}<tr><td colspan="8" class="muted">No approved purchase orders yet.</td></tr>{% endfor %}
+  {% if rows %}<tr><th colspan="2">Total</th><th class="num">{{ totals.ordered|floatformat:0 }}</th><th class="num">{{ totals.delivered|floatformat:0 }}</th>
+    <th class="num">{{ totals.paid|floatformat:0 }}</th><th class="num">{{ totals.advance|floatformat:0 }}</th><th class="num">{{ totals.balance_due|floatformat:0 }}</th><th></th></tr>{% endif %}
+</table></div>
+
+{% if advances %}
+<h2>Advances with goods still to be delivered</h2>
+<div class="table-wrap"><table>
+  <tr><th>Supplier</th><th>Order</th><th class="num">Advance (UGX)</th><th class="num">Days since first payment</th><th>Still to be delivered</th></tr>
+  {% for a in advances %}<tr>
+    <td>{{ a.supplier.name }}</td><td>{{ a.po.number }}</td><td class="num">{{ a.advance|floatformat:0 }}</td>
+    <td class="num {% if a.stale %}bad{% endif %}">{{ a.days }}</td>
+    <td>{% for l in a.outstanding_lines %}{{ l.material }} {{ l.outstanding|floatformat:"-3" }} {{ l.unit }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+  </tr>{% endfor %}
+</table></div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Sign in – StarBuild{% endblock %}
+{% block content %}
+<div class="card" style="max-width:380px;margin:40px auto">
+  <h1>Sign in to StarBuild</h1>
+  <form method="post">
+    {% csrf_token %}
+    {% if form.errors %}<p class="bad">Your username and password didn't match. Please try again.</p>{% endif %}
+    <p><label>Username<br>{{ form.username }}</label></p>
+    <p><label>Password<br>{{ form.password }}</label></p>
+    <input type="hidden" name="next" value="{{ next }}">
+    <button type="submit">Sign in</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ supplier.name }} – statement{% endblock %}
+{% block content %}
+<style>@media print { header, .noprint { display:none !important; } main { max-width:none; padding:0; } body { background:#fff; } }</style>
+<div class="noprint" style="margin-bottom:8px"><a href="{% url 'supplier_list' %}?project={{ project.pk }}">&larr; All suppliers</a>
+  &nbsp; <button onclick="window.print()">Print statement</button></div>
+<h1>{{ supplier.name }} – statement of account</h1>
+<p class="muted">{{ project.name }}. Everything below is calculated from purchase orders, goods received and payments.</p>
+
+<div class="grid">
+  <div class="card"><div class="label">Ordered</div><div class="value">UGX {{ s.totals.ordered|floatformat:0 }}</div></div>
+  <div class="card"><div class="label">Delivered (accepted)</div><div class="value">UGX {{ s.totals.delivered|floatformat:0 }}</div></div>
+  <div class="card"><div class="label">Paid</div><div class="value">UGX {{ s.totals.paid|floatformat:0 }}</div></div>
+  <div class="card"><div class="label">Advance – goods not delivered</div><div class="value {% if s.totals.advance %}bad{% endif %}">UGX {{ s.totals.advance|floatformat:0 }}</div></div>
+  <div class="card"><div class="label">Balance due to supplier</div><div class="value">UGX {{ s.totals.balance_due|floatformat:0 }}</div></div>
+</div>
+
+<h2>Purchase orders</h2>
+<div class="table-wrap"><table>
+  <tr><th>Order</th><th>Date</th><th class="num">Ordered</th><th class="num">Delivered</th><th class="num">Paid</th><th class="num">Advance</th><th class="num">Balance due</th><th>Position</th></tr>
+  {% for a in s.orders %}<tr>
+    <td>{{ a.po.number }}</td><td>{{ a.po.order_date|date:"d/m/Y" }}</td>
+    <td class="num">{{ a.ordered|floatformat:0 }}</td><td class="num">{{ a.delivered|floatformat:0 }}</td><td class="num">{{ a.paid|floatformat:0 }}</td>
+    <td class="num {% if a.advance %}bad{% endif %}">{{ a.advance|floatformat:0 }}</td><td class="num">{{ a.balance_due|floatformat:0 }}</td>
+    <td>{% if a.advance %}<span class="bad">Goods outstanding:</span> {% for l in a.lines %}{% if l.outstanding > 0 %}{{ l.material }} {{ l.outstanding|floatformat:"-3" }} {{ l.unit }}; {% endif %}{% endfor %}{% elif a.balance_due %}Owed{% else %}Settled{% endif %}</td>
+  </tr>{% empty %}<tr><td colspan="8" class="muted">No approved orders.</td></tr>{% endfor %}
+</table></div>
+
+<h2>Register of items supplied</h2>
+<div class="table-wrap"><table>
+  <tr><th>Date</th><th>Order</th><th>Delivery note</th><th>Item</th><th class="num">Quantity</th><th>Unit</th><th class="num">Unit price</th><th class="num">Value (UGX)</th></tr>
+  {% for r in s.supplied %}<tr>
+    <td>{{ r.date|date:"d/m/Y" }}</td><td>{{ r.po }}</td><td>{{ r.delivery_note }}</td><td>{{ r.material }}</td>
+    <td class="num">{{ r.quantity|floatformat:"-3" }}</td><td>{{ r.unit }}</td><td class="num">{{ r.unit_price|floatformat:0 }}</td><td class="num">{{ r.value|floatformat:0 }}</td>
+  </tr>{% empty %}<tr><td colspan="8" class="muted">Nothing delivered yet.</td></tr>{% endfor %}
+  {% if s.supplied %}<tr><th colspan="7">Total supplied</th><th class="num">{{ s.supplied_total|floatformat:0 }}</th></tr>{% endif %}
+</table></div>
+
+<h2>Payments and advances</h2>
+<div class="table-wrap"><table>
+  <tr><th>Date</th><th>Order</th><th>Demand note</th><th>Method</th><th class="num">Amount (UGX)</th><th>Status</th></tr>
+  {% for p in s.payments %}<tr>
+    <td>{{ p.date|date:"d/m/Y" }}</td><td>{{ p.purchase_order.number }}</td><td>{{ p.demand_note.number|default:"-" }}</td>
+    <td>{{ p.get_method_display }}</td><td class="num">{{ p.amount|floatformat:0 }}</td><td>{{ p.get_status_display }}</td>
+  </tr>{% empty %}<tr><td colspan="6" class="muted">No payments.</td></tr>{% endfor %}
+</table></div>
+
+<h2>Demand notes</h2>
+<div class="table-wrap"><table>
+  <tr><th>No.</th><th>Supplier ref</th><th>Order</th><th>Date</th><th class="num">Demanded</th><th class="num">Paid</th><th class="num">Balance</th><th>Status</th></tr>
+  {% for d in s.demands %}<tr>
+    <td>{{ d.number }}</td><td>{{ d.supplier_ref }}</td><td>{{ d.purchase_order.number }}</td><td>{{ d.date|date:"d/m/Y" }}</td>
+    <td class="num">{{ d.amount|floatformat:0 }}</td><td class="num">{{ d.paid|floatformat:0 }}</td>
+    <td class="num">{% if d.status == "approved" %}{{ d.balance|floatformat:0 }}{% else %}-{% endif %}</td>
+    <td>{{ d.get_status_display }}{% if d.is_advance_request %} <span class="bad">(advance request)</span>{% endif %}{% if d.payment_state != "-" %} – {{ d.payment_state }}{% endif %}</td>
+  </tr>{% empty %}<tr><td colspan="8" class="muted">No demand notes.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% if receipts|length == 1 %}Receipt {{ receipts.0.number }}{% else %}Receipts{% endif %}</title>
+<style>
+  body { font-family: Georgia, "Times New Roman", serif; background:#eef0f4; color:#111; margin:0; padding:16px; }
+  .bar { max-width:760px; margin:0 auto 12px; font-family:system-ui,sans-serif; }
+  .bar button { padding:8px 16px; border:0; background:#1f3864; color:#fff; border-radius:6px; cursor:pointer; }
+  .receipt { position:relative; max-width:760px; margin:0 auto 18px; background:#fff; border:2px solid #1f3864; padding:26px 30px; page-break-inside:avoid; }
+  .receipt.void::after { content:"VOID"; position:absolute; top:35%; left:25%; font-size:110px; color:rgba(180,35,24,.18); transform:rotate(-20deg); font-weight:700; }
+  h1 { margin:0; font-size:1.5rem; color:#1f3864; letter-spacing:1px; }
+  .head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #b8860b; padding-bottom:10px; margin-bottom:14px; }
+  .no { text-align:right; font-family:system-ui,sans-serif; font-size:.9rem; }
+  .no b { font-size:1.15rem; color:#b42318; }
+  table { width:100%; border-collapse:collapse; font-size:1rem; }
+  td { padding:6px 0; vertical-align:top; } td.k { width:32%; color:#444; font-family:system-ui,sans-serif; font-size:.85rem; text-transform:uppercase; letter-spacing:.3px; }
+  .amount { margin:12px 0; padding:10px 14px; border:1px solid #1f3864; font-size:1.3rem; font-weight:700; display:inline-block; }
+  .sign { display:flex; gap:30px; margin-top:34px; font-family:system-ui,sans-serif; font-size:.85rem; }
+  .sign div { flex:1; border-top:1px solid #111; padding-top:4px; }
+  .items { margin:12px 0; font-size:.88rem; font-family:system-ui,sans-serif; border:1px solid #c9d1e0; }
+  .items th { background:#eef2f9; color:#1f3864; font-size:.72rem; text-transform:uppercase; padding:5px 6px; text-align:left; }
+  .items td { border-top:1px solid #e2e6ee; padding:5px 6px; }
+  .items .n { text-align:right; font-variant-numeric:tabular-nums; }
+  .acct { margin:10px 0; font-family:system-ui,sans-serif; font-size:.9rem; width:60%; margin-left:auto; border:1px solid #c9d1e0; }
+  .acct td { padding:4px 8px; border-top:1px solid #e2e6ee; } .acct td:last-child { text-align:right; font-variant-numeric:tabular-nums; }
+  .banner { margin:10px 0; padding:8px 12px; font-family:system-ui,sans-serif; font-weight:700; font-size:.9rem; border:2px solid; }
+  .banner.advance { border-color:#b42318; color:#b42318; } .banner.due { border-color:#b8860b; color:#8a6508; } .banner.paid { border-color:#067647; color:#067647; }
+  .foot { margin-top:14px; font-size:.75rem; color:#555; font-family:system-ui,sans-serif; }
+  @media print { body { background:#fff; padding:0; } .bar { display:none; } .receipt { margin:0 auto 12mm; } }
+</style>
+</head>
+<body>
+<div class="bar"><button onclick="window.print()">Print</button></div>
+{% for r in receipts %}
+<div class="receipt {% if r.voided %}void{% endif %}">
+  <div class="head">
+    <div><h1>PAYMENT RECEIPT</h1><div>{{ r.project.name }}{% if r.project.owner_name %} &middot; {{ r.project.owner_name }}{% endif %}</div></div>
+    <div class="no">Receipt no.<br><b>{{ r.number }}</b><br>Date: {{ r.date|date:"d/m/Y" }}</div>
+  </div>
+  <table>
+    <tr><td class="k">Received from</td><td>{{ r.project.name }}</td></tr>
+    <tr><td class="k">Paid to ({{ r.get_payee_type_display }})</td><td><b>{{ r.payee_name }}</b></td></tr>
+    <tr><td class="k">Amount in words</td><td><i>{{ r.amount_words }}</i></td></tr>
+    <tr><td class="k">Being payment for</td><td>{{ r.purpose }}</td></tr>
+    <tr><td class="k">Method</td><td>{{ r.get_method_display|default:"-" }}{% if r.reference %} &middot; Ref: {{ r.reference }}{% endif %}</td></tr>
+  </table>
+  <div class="amount">UGX {{ r.amount|floatformat:0 }}</div>
+  {% with snap=r.snapshot %}
+  {% if snap.kind == "supplier" %}
+    <div class="banner {{ snap.tone }}">{{ snap.status }}</div>
+    {% if snap.demand_note %}<div style="font-family:system-ui,sans-serif;font-size:.85rem">Demand note {{ snap.demand_note.number }} (supplier ref {{ snap.demand_note.supplier_ref }}): demanded UGX {{ snap.demand_note.amount|floatformat:0 }}, paid to date UGX {{ snap.demand_note.paid|floatformat:0 }}, balance UGX {{ snap.demand_note.balance|floatformat:0 }}.</div>{% endif %}
+    <table class="items">
+      <tr><th>Item (order {{ snap.po }})</th><th>Unit</th><th class="n">Ordered</th><th class="n">Delivered</th><th class="n">Outstanding</th><th class="n">Unit price</th><th class="n">Delivered value</th></tr>
+      {% for l in snap.lines %}<tr><td>{{ l.material }}</td><td>{{ l.unit }}</td><td class="n">{{ l.ordered|floatformat:"-3" }}</td><td class="n">{{ l.delivered|floatformat:"-3" }}</td>
+        <td class="n" {% if l.outstanding != "0.000" %}style="color:#b42318;font-weight:700"{% endif %}>{{ l.outstanding|floatformat:"-3" }}</td>
+        <td class="n">{{ l.unit_price|floatformat:0 }}</td><td class="n">{{ l.delivered_value|floatformat:0 }}</td></tr>{% endfor %}
+    </table>
+    <table class="acct">
+      <tr><td>Order value</td><td>{{ snap.ordered|floatformat:0 }}</td></tr>
+      <tr><td>Value of goods delivered</td><td>{{ snap.delivered|floatformat:0 }}</td></tr>
+      <tr><td>Paid before this payment</td><td>{{ snap.paid_before|floatformat:0 }}</td></tr>
+      <tr><td>This payment</td><td>{{ snap.this_payment|floatformat:0 }}</td></tr>
+      <tr><td><b>Total paid</b></td><td><b>{{ snap.paid_total|floatformat:0 }}</b></td></tr>
+      {% if snap.advance != "0.00" %}<tr><td style="color:#b42318"><b>Advance - goods not yet delivered</b></td><td style="color:#b42318"><b>{{ snap.advance|floatformat:0 }}</b></td></tr>{% endif %}
+      {% if snap.balance_due != "0.00" %}<tr><td><b>Balance due to supplier</b></td><td><b>{{ snap.balance_due|floatformat:0 }}</b></td></tr>{% endif %}
+    </table>
+  {% elif snap.kind == "contractor" %}
+    <table class="acct" style="width:70%">
+      <tr><td>Contract {{ snap.contract }} - contract sum</td><td>{{ snap.contract_amount|floatformat:0 }}</td></tr>
+      <tr><td>Certified to date (gross)</td><td>{{ snap.certified_gross|floatformat:0 }}</td></tr>
+      <tr><td>Retention held</td><td>{{ snap.retention_held|floatformat:0 }}</td></tr>
+      <tr><td>Certificate {{ snap.certificate }} - net payable</td><td>{{ snap.certificate_net|floatformat:0 }}</td></tr>
+      <tr><td>Paid on this certificate (incl. this payment)</td><td>{{ snap.paid_this_certificate|floatformat:0 }}</td></tr>
+      <tr><td><b>Balance on this certificate</b></td><td><b>{{ snap.balance_this_certificate|floatformat:0 }}</b></td></tr>
+    </table>
+  {% elif snap.kind == "worker" %}
+    <table class="acct" style="width:60%">
+      <tr><td>Payroll</td><td>{{ snap.payroll }}</td></tr>
+      <tr><td>Days worked</td><td>{{ snap.days }}</td></tr>
+      <tr><td>Regular pay</td><td>{{ snap.regular|floatformat:0 }}</td></tr>
+      <tr><td>Overtime pay</td><td>{{ snap.overtime|floatformat:0 }}</td></tr>
+      <tr><td><b>Total paid</b></td><td><b>{{ snap.total|floatformat:0 }}</b></td></tr>
+    </table>
+  {% endif %}
+  {% endwith %}
+  {% if r.voided %}<p style="color:#b42318"><b>VOID</b> &ndash; {{ r.void_reason }} ({{ r.voided_at|date:"d/m/Y" }})</p>{% endif %}
+  <div class="sign">
+    <div>Received by (name, signature, date)</div>
+    <div>Paid by: {{ r.created_by|default:"" }}</div>
+  </div>
+  <div class="foot">Issued by StarBuild on {{ r.created_at|date:"d/m/Y H:i" }}. This receipt is valid only with the payee's signature and a number that appears in the project's receipt register.</div>
+</div>
+{% endfor %}
+</body>
+</html>

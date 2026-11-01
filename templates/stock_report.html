@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Stock – StarBuild{% endblock %}
+{% block content %}
+<form method="get" style="margin-bottom:8px">
+  <label class="muted">Project&nbsp;
+    <select name="project" onchange="this.form.submit()">
+      {% for p in projects %}<option value="{{ p.pk }}" {% if project and p.pk == project.pk %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+    </select>
+  </label>
+</form>
+<h1>Stock position{% if project %} – {{ project.name }}{% endif %}</h1>
+<p class="muted">Balances are calculated from the stock ledger: received + returned − issued − wastage ± stocktake adjustments. Values use the weighted-average cost of goods received.</p>
+
+<div class="table-wrap"><table>
+  <tr><th>Material</th><th>Category</th><th class="num">Received</th><th class="num">Issued</th><th class="num">Returned</th>
+      <th class="num">Wasted</th><th class="num">In stock</th><th class="num">Avg cost</th><th class="num">Stock value</th></tr>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.material.name }} <span class="muted">({{ r.material.unit }})</span></td>
+    <td class="muted">{{ r.material.category }}</td>
+    <td class="num">{{ r.received|floatformat:"-3" }}</td>
+    <td class="num">{{ r.issued|floatformat:"-3" }}</td>
+    <td class="num">{{ r.returned|floatformat:"-3" }}</td>
+    <td class="num">{{ r.wasted|floatformat:"-3" }}</td>
+    <td class="num {% if r.below_reorder %}bad{% endif %}">{{ r.balance|floatformat:"-3" }}</td>
+    <td class="num">{{ r.avg_cost|floatformat:0 }}</td>
+    <td class="num">{{ r.stock_value|floatformat:0 }}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="9" class="muted">No stock movements yet. Receive goods against an approved purchase order to start.</td></tr>
+  {% endfor %}
+  {% if rows %}
+  <tr><th colspan="8" class="num">Total stock value (UGX)</th><th class="num">{{ totals.stock_value|floatformat:0 }}</th></tr>
+  {% endif %}
+</table></div>
+{% endblock %}

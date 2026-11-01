@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}BOQ progress – StarBuild{% endblock %}
+{% block content %}
+<form method="get" style="margin-bottom:8px">
+  <label class="muted">Project&nbsp;
+    <select name="project" onchange="this.form.submit()">
+      {% for p in projects %}<option value="{{ p.pk }}" {% if project and p.pk == project.pk %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+    </select>
+  </label>
+</form>
+<h1>BOQ progress{% if project %} – {{ project.name }}{% endif %}</h1>
+{% if project %}
+<div class="grid">
+  <div class="card"><div class="label">BOQ value (revised)</div><div class="value">UGX {{ totals.estimated|floatformat:0 }}</div></div>
+  <div class="card"><div class="label">Earned value (work measured)</div><div class="value">UGX {{ totals.earned|floatformat:0 }}</div></div>
+  <div class="card"><div class="label">Completion by value</div><div class="value">{{ totals.percent|floatformat:1 }}%</div>
+    <div class="bar" style="margin-top:8px"><span style="width:{{ totals.percent|floatformat:0 }}%"></span></div></div>
+</div>
+
+<h2>Items</h2>
+<div class="table-wrap"><table>
+  <tr><th>Code</th><th>Description</th><th>Unit</th><th class="num">BOQ qty</th><th class="num">Done</th><th class="num">Remaining</th>
+      <th class="num">%</th><th class="num">Value (UGX)</th><th class="num">Issued to site</th><th>Check</th></tr>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.item.code }}</td><td>{{ r.item.description }}</td><td>{{ r.item.unit }}</td>
+    <td class="num">{{ r.item.revised_quantity|floatformat:"-3" }}</td>
+    <td class="num">{{ r.done|floatformat:"-3" }}</td>
+    <td class="num">{{ r.remaining|floatformat:"-3" }}</td>
+    <td class="num">{{ r.percent|floatformat:0 }}</td>
+    <td class="num">{{ r.estimated|floatformat:0 }}</td>
+    <td class="num">{% if r.issued is not None %}{{ r.issued|floatformat:"-3" }}{% else %}–{% endif %}</td>
+    <td>{% if r.overrun %}<span class="bad">Issued above BOQ – investigate</span>{% endif %}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="10" class="muted">No BOQ items yet. Add them under Records &amp; actions → BOQ items.</td></tr>
+  {% endfor %}
+</table></div>
+
+{% if phase_rows %}
+<h2>BOQ estimate vs component budget</h2>
+<div class="table-wrap"><table>
+  <tr><th>Component</th><th class="num">Component budget</th><th class="num">BOQ estimate</th><th class="num">Difference</th></tr>
+  {% for r in phase_rows %}
+  <tr><td>{{ r.phase.name }}</td><td class="num">{{ r.budget|floatformat:0 }}</td><td class="num">{{ r.boq_estimate|floatformat:0 }}</td>
+      <td class="num {% if r.difference < 0 %}bad{% endif %}">{{ r.difference|floatformat:0 }}</td></tr>
+  {% endfor %}
+</table></div>
+{% endif %}
+{% endif %}
+{% endblock %}

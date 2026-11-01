@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Budget vs actual – StarBuild{% endblock %}
+{% block content %}
+<form method="get" style="margin-bottom:8px">
+  <label class="muted">Project&nbsp;
+    <select name="project" onchange="this.form.submit()">
+      {% for p in projects %}<option value="{{ p.pk }}" {% if project and p.pk == project.pk %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+    </select>
+  </label>
+</form>
+<h1>Budget vs actual{% if project %} – {{ project.name }}{% endif %}</h1>
+{% if project %}
+<p class="muted">Actual = approved expenses only. Approved project budget: UGX {{ project_budget|floatformat:0 }}.</p>
+
+<h2>By category</h2>
+<div class="table-wrap"><table>
+  <tr><th>Category</th><th class="num">Budget</th><th class="num">Actual</th><th class="num">Balance</th><th class="num">Used</th><th>Flag</th></tr>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.label }}</td>
+    <td class="num">{{ r.budget|floatformat:0 }}</td>
+    <td class="num">{{ r.spent|floatformat:0 }}</td>
+    <td class="num {% if r.balance < 0 %}bad{% endif %}">{{ r.balance|floatformat:0 }}</td>
+    <td class="num">{% if r.pct is not None %}{{ r.pct|floatformat:0 }}%{% else %}–{% endif %}</td>
+    <td>{% if r.flag %}<span class="bad">{{ r.flag }}</span>{% endif %}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="6" class="muted">No budget lines or expenses yet.</td></tr>
+  {% endfor %}
+  {% if rows %}
+  <tr><th>Total</th><th class="num">{{ total_budget|floatformat:0 }}</th><th class="num">{{ total_spent|floatformat:0 }}</th>
+      <th class="num">{{ total_balance|floatformat:0 }}</th><th></th><th></th></tr>
+  {% endif %}
+</table></div>
+
+<h2>By construction component</h2>
+<div class="table-wrap"><table>
+  <tr><th>Component</th><th class="num">Budget</th><th class="num">Actual</th><th class="num">Balance</th><th>Flag</th></tr>
+  {% for r in phase_rows %}
+  <tr><td>{{ r.phase.name }}</td><td class="num">{{ r.budget|floatformat:0 }}</td><td class="num">{{ r.spent|floatformat:0 }}</td>
+      <td class="num {% if r.balance < 0 %}bad{% endif %}">{{ r.balance|floatformat:0 }}</td>
+      <td>{% if r.flag %}<span class="bad">{{ r.flag }}</span>{% endif %}</td></tr>
+  {% empty %}
+  <tr><td colspan="5" class="muted">No component budgets or component-linked expenses yet.</td></tr>
+  {% endfor %}
+</table></div>
+{% if unassigned %}<p class="muted">UGX {{ unassigned|floatformat:0 }} of expenditure is not linked to a component.</p>{% endif %}
+
+<h2>Owed to suppliers</h2>
+<div class="table-wrap"><table>
+  <tr><th>Supplier</th><th class="num">Outstanding (UGX)</th></tr>
+  {% for name, amount in payables %}<tr><td>{{ name }}</td><td class="num">{{ amount|floatformat:0 }}</td></tr>
+  {% empty %}<tr><td colspan="2" class="muted">Nothing outstanding.</td></tr>{% endfor %}
+  {% if payables %}<tr><th>Total</th><th class="num">{{ total_payable|floatformat:0 }}</th></tr>{% endif %}
+</table></div>
+
+<h2>Advances paid to suppliers (goods not yet delivered)</h2>
+<p class="muted">Advances are not counted as expenditure until the goods arrive.</p>
+<div class="table-wrap"><table>
+  <tr><th>Supplier</th><th>Order</th><th class="num">Advance (UGX)</th><th class="num">Days</th><th>Still to be delivered</th></tr>
+  {% for a in advances %}<tr>
+    <td>{{ a.supplier.name }}</td><td>{{ a.po.number }}</td><td class="num">{{ a.advance|floatformat:0 }}</td>
+    <td class="num {% if a.stale %}bad{% endif %}">{{ a.days }}</td>
+    <td>{% for l in a.outstanding_lines %}{{ l.material }} {{ l.outstanding|floatformat:"-3" }} {{ l.unit }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+  </tr>{% empty %}<tr><td colspan="5" class="muted">No advances outstanding.</td></tr>{% endfor %}
+  {% if advances %}<tr><th colspan="2">Total</th><th class="num">{{ total_advances|floatformat:0 }}</th><th colspan="2"></th></tr>{% endif %}
+</table></div>
+{% endif %}
+{% endblock %}

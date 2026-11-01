@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Receipts – StarBuild{% endblock %}
+{% block content %}
+<h1>Receipts{% if project %} – {{ project.name }}{% endif %}</h1>
+<form method="get" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:end">
+  <label class="muted">Project<br>
+    <select name="project">{% for p in projects %}<option value="{{ p.pk }}" {% if project and p.pk == project.pk %}selected{% endif %}>{{ p.name }}</option>{% endfor %}</select>
+  </label>
+  <label class="muted">Search<br><input name="q" value="{{ q }}" placeholder="Name, number or reference"></label>
+  <label class="muted">Payee<br>
+    <select name="type"><option value="">All</option>{% for v, l in types %}<option value="{{ v }}" {% if v == ptype %}selected{% endif %}>{{ l }}</option>{% endfor %}</select>
+  </label>
+  <label class="muted">From<br><input type="date" name="from" value="{{ start }}"></label>
+  <label class="muted">To<br><input type="date" name="to" value="{{ end }}"></label>
+  <button type="submit">Filter</button>
+</form>
+<p class="muted">Valid receipts shown total <b>UGX {{ total|floatformat:0 }}</b>. Receipts are issued automatically when a payment is recorded; worker wage receipts are issued from the payroll (Records &amp; actions).</p>
+<div class="table-wrap"><table>
+  <tr><th>Receipt</th><th>Date</th><th>Payee</th><th>Type</th><th>For</th><th class="num">Amount (UGX)</th><th>Status</th><th></th></tr>
+  {% for r in receipts %}
+  <tr>
+    <td>{{ r.number }}</td><td>{{ r.date|date:"d/m/Y" }}</td><td>{{ r.payee_name }}</td>
+    <td>{{ r.get_payee_type_display }}</td><td>{{ r.purpose }}</td>
+    <td class="num">{{ r.amount|floatformat:0 }}</td>
+    <td>{% if r.voided %}<span class="bad">VOID</span>{% else %}<span class="ok">Valid</span>{% endif %}</td>
+    <td><a href="{% url 'receipt_print' r.pk %}" target="_blank">Print</a></td>
+  </tr>
+  {% empty %}<tr><td colspan="8" class="muted">No receipts found.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

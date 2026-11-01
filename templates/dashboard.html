@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – StarBuild{% endblock %}
+{% block content %}
+{% if not project %}
+  <h1>Welcome to StarBuild</h1>
+  <p>No project is available to you yet. Ask an administrator to create a project or add you as a member.</p>
+{% else %}
+  <form method="get" style="margin-bottom:8px">
+    <label class="muted">Project&nbsp;
+      <select name="project" onchange="this.form.submit()">
+        {% for p in projects %}<option value="{{ p.pk }}" {% if p.pk == project.pk %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+      </select>
+    </label>
+  </form>
+  <h1>{{ project.name }} <span class="muted" style="font-size:.9rem">· {{ project.city }} · {{ project.get_star_target_display }}</span></h1>
+
+  <div class="grid">
+    {% if show_finance %}
+    <div class="card"><div class="label">Approved budget</div><div class="value">UGX {{ budget|floatformat:0 }}</div></div>
+    <div class="card"><div class="label">Total expenditure</div><div class="value">UGX {{ spent|floatformat:0 }}</div>
+      <div class="bar" style="margin-top:8px"><span style="width:{{ budget_used_pct }}%"></span></div></div>
+    <div class="card"><div class="label">Available budget</div>
+      <div class="value {% if available < 0 %}bad{% endif %}">UGX {{ available|floatformat:0 }}</div></div>
+    <div class="card"><div class="label">Outstanding payments</div><div class="value">UGX {{ outstanding|floatformat:0 }}</div></div>
+    <div class="card"><div class="label">Advances to suppliers (goods not delivered)</div><div class="value {% if stale_advances %}bad{% endif %}">UGX {{ total_advances|floatformat:0 }}</div></div>
+    {% endif %}
+    <div class="card"><div class="label">Materials purchased</div><div class="value">UGX {{ purchased_value|floatformat:0 }}</div></div>
+    <div class="card"><div class="label">Materials consumed</div><div class="value">UGX {{ consumed_value|floatformat:0 }}</div></div>
+    <div class="card"><div class="label">Stock on hand</div><div class="value">UGX {{ stock_value|floatformat:0 }}</div></div>
+    <div class="card"><div class="label">Wastage / loss</div><div class="value">UGX {{ wastage_value|floatformat:0 }}</div></div>
+    <div class="card"><div class="label">Project completion</div><div class="value">{{ progress }}%</div>
+      <div class="bar" style="margin-top:8px"><span style="width:{{ progress }}%"></span></div></div>
+  </div>
+
+  {% if show_finance and stale_advances %}
+    <p class="bad">{% for a in stale_advances %}{{ a.supplier.name }} ({{ a.po.number }}): advance of UGX {{ a.advance|floatformat:0 }} paid {{ a.days }} days ago and goods still not fully delivered.{% if not forloop.last %}<br>{% endif %}{% endfor %}
+    <a href="{% url 'supplier_list' %}?project={{ project.pk }}">See suppliers</a></p>
+  {% endif %}
+  {% if show_finance and pending_payments %}
+    <p class="bad">{{ pending_payments }} advance payment(s) are waiting for approval.</p>
+  {% endif %}
+  {% if show_finance and pending_expenses %}
+    <p class="bad">{{ pending_expenses }} expense(s) are waiting for approval.</p>
+  {% endif %}
+
+  {% if low_stock %}
+  <h2>Low stock – reorder needed</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Material</th><th class="num">In stock</th><th class="num">Reorder level</th></tr>
+    {% for r in low_stock %}
+      <tr><td>{{ r.material.name }}</td><td class="num bad">{{ r.balance|floatformat:"-3" }} {{ r.material.unit }}</td>
+          <td class="num">{{ r.material.reorder_level|floatformat:"-3" }}</td></tr>
+    {% endfor %}
+  </table></div>
+  {% endif %}
+
+  <h2>Construction progress</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Component</th><th>Type</th><th>Progress</th><th class="num">%</th><th>Status</th></tr>
+    {% for p in phases %}
+      <tr><td>{{ p.name }}</td><td class="muted">{{ p.get_kind_display }}</td>
+        <td style="width:30%"><div class="bar"><span style="width:{{ p.percent_complete }}%"></span></div></td>
+        <td class="num">{{ p.percent_complete|floatformat:0 }}</td>
+        <td>{% if p.is_delayed %}<span class="bad">Delayed</span>{% elif p.percent_complete == 100 %}<span class="ok">Complete</span>{% else %}<span class="muted">–</span>{% endif %}</td></tr>
+    {% empty %}
+      <tr><td colspan="5" class="muted">No components yet. Add them under Records &amp; actions → Projects.</td></tr>
+    {% endfor %}
+  </table></div>
+
+  {% if show_finance and by_category %}
+  <h2>Expenditure by category</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Category</th><th class="num">UGX</th></tr>
+    {% for c in by_category %}<tr><td>{{ c.label }}</td><td class="num">{{ c.total|floatformat:0 }}</td></tr>{% endfor %}
+  </table></div>
+  {% endif %}
+
+  <h2>Recent site diaries</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Date</th><th>Weather</th><th class="num">Workers</th><th>Supervisor</th></tr>
+    {% for d in recent_diaries %}
+      <tr><td>{{ d.date|date:"d/m/Y" }}</td><td>{{ d.get_weather_display }}</td><td class="num">{{ d.workers_present }}</td><td>{{ d.supervisor|default:"–" }}</td></tr>
+    {% empty %}<tr><td colspan="4" class="muted">No diary entries yet.</td></tr>{% endfor %}
+  </table></div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}StarBuild{% endblock %}</title>
+  <style>
+    :root { --navy:#1f3864; --gold:#b8860b; --bg:#f4f6fa; --card:#fff; --text:#1d2433; --muted:#667085; --line:#e2e6ee; --bad:#b42318; --ok:#067647; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); }
+    header { background:var(--navy); color:#fff; padding:12px 16px; display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; }
+    header a { color:#fff; text-decoration:none; margin-right:14px; }
+    header .brand { font-weight:700; letter-spacing:.5px; border-bottom:2px solid var(--gold); }
+    main { max-width:1100px; margin:0 auto; padding:16px; }
+    h1 { font-size:1.4rem; margin:.2rem 0 1rem; color:var(--navy); }
+    h2 { font-size:1.05rem; margin:1.4rem 0 .6rem; color:var(--navy); }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
+    .card .label { font-size:.78rem; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; }
+    .card .value { font-size:1.3rem; font-weight:700; margin-top:4px; }
+    table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:10px; overflow:hidden; font-size:.92rem; }
+    th, td { padding:8px 10px; text-align:left; border-bottom:1px solid var(--line); }
+    th { background:#eef2f9; color:var(--navy); font-size:.8rem; text-transform:uppercase; letter-spacing:.3px; }
+    td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+    .table-wrap { overflow-x:auto; }
+    .bar { background:#e6eaf2; border-radius:6px; height:10px; min-width:80px; overflow:hidden; }
+    .bar > span { display:block; height:100%; background:var(--gold); }
+    .bad { color:var(--bad); font-weight:600; } .ok { color:var(--ok); font-weight:600; }
+    select, button, input { font:inherit; padding:6px 10px; border:1px solid var(--line); border-radius:8px; }
+    button { background:var(--navy); color:#fff; border:0; cursor:pointer; }
+    .muted { color:var(--muted); }
+    form.inline { display:inline; }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <a class="brand" href="{% url 'dashboard' %}">STARBUILD</a>
+    {% if user.is_authenticated %}
+      <a href="{% url 'dashboard' %}{% if project %}?project={{ project.pk }}{% endif %}">Dashboard</a>
+      <a href="{% url 'stock_report' %}{% if project %}?project={{ project.pk }}{% endif %}">Stock</a>
+      <a href="{% url 'budget_report' %}{% if project %}?project={{ project.pk }}{% endif %}">Budget</a>
+      <a href="{% url 'boq_report' %}{% if project %}?project={{ project.pk }}{% endif %}">BOQ</a>
+      <a href="{% url 'labour_report' %}{% if project %}?project={{ project.pk }}{% endif %}">Labour</a>
+      <a href="{% url 'supplier_list' %}{% if project %}?project={{ project.pk }}{% endif %}">Suppliers</a>
+      <a href="{% url 'receipt_list' %}{% if project %}?project={{ project.pk }}{% endif %}">Receipts</a>
+      {% if user.is_staff %}<a href="{% url 'admin:index' %}">Records &amp; actions</a>{% endif %}
+    {% endif %}
+  </div>
+  {% if user.is_authenticated %}
+  <div>
+    <span class="muted" style="color:#cfd8ea">{{ user }} · {{ user.get_role_display }}</span>
+    <form class="inline" method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" style="margin-left:10px">Log out</button></form>
+  </div>
+  {% endif %}
+</header>
+<main>
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>
