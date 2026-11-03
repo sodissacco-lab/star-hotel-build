@@ -64,5 +64,5 @@ class StarterTests(TestCase):
         request._messages = FallbackStorage(request)
         ProjectAdmin(Project, AdminSite()).load_starter_list(request, Project.objects.filter(pk=self.project.pk))
         text = " ".join(str(m) for m in request._messages)
-        self.assertIn("added 15 units", text)
+        self.assertIn(f"added {len(starter.UNITS)} units", text)
         self.assertEqual(Material.objects.count(), len(starter.MATERIALS))

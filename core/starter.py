@@ -11,13 +11,13 @@ from projects.models import Phase
 UNITS = [
     ("Bag", "bag"), ("Kilogram", "kg"), ("Tonne", "t"), ("Piece", "pcs"), ("Metre", "m"), ("Square metre", "m2"),
     ("Cubic metre", "m3"), ("Litre", "l"), ("Tin", "tin"), ("Roll", "roll"), ("Bundle", "bdl"), ("Sheet", "sht"),
-    ("Length", "len"), ("Trip", "trip"), ("Set", "set"),
+    ("Length", "len"), ("Trip", "trip"), ("Set", "set"), ("Unit", "unit"),
 ]
 
 CATEGORIES = [
     "Cement and binders", "Aggregates and sand", "Bricks and blocks", "Steel and reinforcement", "Timber", "Roofing",
     "Doors and windows", "Electrical", "Plumbing and sanitary", "Paint and finishes", "Tiles and flooring",
-    "Ceiling and partitions", "Waterproofing", "Fuel and lubricants", "Tools and consumables", "Safety equipment",
+    "Ceiling and partitions", "Waterproofing", "Fuel and lubricants", "Tools and consumables", "Safety equipment", "Formwork and scaffolding",
 ]
 
 # code, name, category, unit name, reorder level
@@ -46,6 +46,53 @@ MATERIALS = [
     ("FUL01", "Diesel", "Fuel and lubricants", "Litre", 100),
     ("TLS01", "Nails (assorted)", "Tools and consumables", "Kilogram", 10),
     ("SAF01", "Safety helmet", "Safety equipment", "Piece", 10),
+    # structure and masonry
+    ("DPC01", "Damp-proof course", "Waterproofing", "Roll", 3),
+    ("BRC01", "Mesh reinforcement BRC", "Steel and reinforcement", "Sheet", 10),
+    ("FRM01", "Formwork timber", "Formwork and scaffolding", "Length", 50),
+    ("SCF01", "Props and scaffolding", "Formwork and scaffolding", "Set", 0),
+    ("ADM01", "Concrete admixture", "Cement and binders", "Litre", 20),
+    ("LIM01", "Lime", "Cement and binders", "Bag", 10),
+    ("MUR01", "Murram", "Aggregates and sand", "Trip", 1),
+    ("RUB01", "Rubble stone", "Aggregates and sand", "Trip", 1),
+    ("PLS01", "Plaster sand", "Aggregates and sand", "Tonne", 5),
+    ("WAT01", "Water", "Tools and consumables", "Trip", 0),
+    # roofing
+    ("TRS01", "Roof trusses", "Roofing", "Piece", 0),
+    ("PRL01", "Purlins, steel", "Roofing", "Length", 20),
+    ("RDG01", "Ridge caps", "Roofing", "Piece", 10),
+    ("GUT01", "Gutters and downpipes", "Roofing", "Length", 10),
+    # electrical
+    ("ELE03", "Electrical cable 1.5 mm", "Electrical", "Roll", 3),
+    ("ELE04", "Electrical cable 4 mm", "Electrical", "Roll", 3),
+    ("ELE05", "Electrical cable 6 mm", "Electrical", "Roll", 2),
+    ("ELE06", "Switches and sockets", "Electrical", "Piece", 30),
+    ("ELE07", "Distribution board", "Electrical", "Piece", 0),
+    ("ELE08", "Light fittings", "Electrical", "Piece", 20),
+    ("ELE09", "Earthing rod", "Electrical", "Piece", 5),
+    ("ELE10", "Backup generator", "Electrical", "Unit", 0),
+    # plumbing and sanitary
+    ("PLB03", "PVC pipe 2 inch", "Plumbing and sanitary", "Length", 10),
+    ("PLB04", "PVC pipe 3 inch", "Plumbing and sanitary", "Length", 10),
+    ("PLB05", "Pipe fittings (elbows, tees)", "Plumbing and sanitary", "Piece", 50),
+    ("PLB06", "Water tank 5,000 litres", "Plumbing and sanitary", "Piece", 0),
+    ("PLB07", "Water pump", "Plumbing and sanitary", "Piece", 0),
+    ("PLB08", "Floor drains", "Plumbing and sanitary", "Piece", 10),
+    ("PLB09", "Septic tank rings", "Plumbing and sanitary", "Piece", 0),
+    ("SAN01", "Toilet (WC)", "Plumbing and sanitary", "Set", 0),
+    ("SAN02", "Hand basin", "Plumbing and sanitary", "Piece", 0),
+    ("SAN03", "Shower set", "Plumbing and sanitary", "Set", 0),
+    ("SAN04", "Taps and mixers", "Plumbing and sanitary", "Piece", 10),
+    # finishes and waterproofing
+    ("WTP02", "Bituminous paint", "Waterproofing", "Tin", 5),
+    # fuel and site
+    ("FUL02", "Petrol", "Fuel and lubricants", "Litre", 50),
+    ("FUL03", "Engine oil", "Fuel and lubricants", "Litre", 10),
+    ("TLS02", "Screws and fixings", "Tools and consumables", "Kilogram", 5),
+    ("TLS03", "Cutting discs", "Tools and consumables", "Piece", 20),
+    ("SAF02", "Work gloves", "Safety equipment", "Piece", 20),
+    ("SAF03", "Safety boots", "Safety equipment", "Piece", 10),
+    ("SAF04", "Reflective jackets", "Safety equipment", "Piece", 10),
 ]
 
 PHASES = [
