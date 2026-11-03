@@ -10,6 +10,8 @@
     body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); }
     header { background:var(--navy); color:#fff; padding:12px 16px; display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; }
     header a { color:#fff; text-decoration:none; margin-right:14px; }
+    header .brandlogo { height:34px; width:auto; background:#fff; border-radius:6px; padding:2px 6px; vertical-align:middle; margin-right:8px; }
+    .letterhead { display:none; }
     header .brand { font-weight:700; letter-spacing:.5px; border-bottom:2px solid var(--gold); }
     main { max-width:1100px; margin:0 auto; padding:16px; }
     h1 { font-size:1.4rem; margin:.2rem 0 1rem; color:var(--navy); }
@@ -45,14 +47,14 @@
     .fw button.big { width:100%; padding:14px; font-size:1.05rem; margin-top:14px; }
     .fw button.alt { background:#fff; color:var(--navy); border:1px solid var(--navy); }
     .fw .fielderr { color:var(--bad); font-size:.85rem; }
-    @media print { header, .noprint, .msg { display:none !important; } body { background:#fff; } main { max-width:none; padding:0; } .card, table { break-inside:avoid; } h2 { break-after:avoid; } }
+    @media print { .letterhead { display:block; text-align:center; border-bottom:2px solid #b8860b; margin-bottom:12px; padding-bottom:6px; } .letterhead img { height:70px; width:auto; } header, .noprint, .msg { display:none !important; } body { background:#fff; } main { max-width:none; padding:0; } .card, table { break-inside:avoid; } h2 { break-after:avoid; } }
     .seg label { display:inline-block; margin:0 8px 0 0; color:var(--text); font-size:1rem; }
   </style>
 </head>
 <body>
 <header>
   <div>
-    <a class="brand" href="{% url 'dashboard' %}">STARBUILD</a>
+    <a class="brand" href="{% url 'dashboard' %}" style="border:0"><img class="brandlogo" src="{% include '_brand_src.html' %}" alt="TaajPalm Hotel"><span style="border-bottom:2px solid var(--gold)">STARBUILD</span></a>
     {% if user.is_authenticated %}
       <a href="{% url 'dashboard' %}{% if project %}?project={{ project.pk }}{% endif %}">Dashboard</a>
       <a href="{% url 'stock_report' %}{% if project %}?project={{ project.pk }}{% endif %}">Stock</a>
@@ -75,6 +77,7 @@
   {% endif %}
 </header>
 <main>
+  <div class="letterhead"><img src="{% include '_brand_src.html' %}" alt="TaajPalm Hotel"></div>
   {% for m in messages %}<div class="msg {{ m.tags }}">{{ m }}</div>{% endfor %}
   {% block content %}{% endblock %}
 </main>

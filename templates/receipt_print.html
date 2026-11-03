@@ -36,7 +36,7 @@
 {% for r in receipts %}
 <div class="receipt {% if r.voided %}void{% endif %}">
   <div class="head">
-    <div><h1>PAYMENT RECEIPT</h1><div>{{ r.project.name }}{% if r.project.owner_name %} &middot; {{ r.project.owner_name }}{% endif %}</div></div>
+    <div><img src="{% include '_brand_src.html' %}" alt="TaajPalm Hotel" style="height:56px;width:auto;display:block;margin-bottom:6px"><h1>PAYMENT RECEIPT</h1><div>{{ r.project.name }}{% if r.project.owner_name %} &middot; {{ r.project.owner_name }}{% endif %}</div></div>
     <div class="no">Receipt no.<br><b>{{ r.number }}</b><br>Date: {{ r.date|date:"d/m/Y" }}</div>
   </div>
   <table>

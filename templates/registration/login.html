@@ -2,6 +2,7 @@
 {% block title %}Sign in – StarBuild{% endblock %}
 {% block content %}
 <div class="card" style="max-width:380px;margin:40px auto">
+  <div style="text-align:center"><img src="{% include '_brand_src.html' %}" alt="TaajPalm Hotel" style="height:80px;width:auto"></div>
   <h1>Sign in to StarBuild</h1>
   <form method="post">
     {% csrf_token %}
