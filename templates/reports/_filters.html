@@ -1,0 +1,21 @@
+<form method="get" class="noprint" style="margin-bottom:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:end">
+  <label class="muted">Project<br>
+    <select name="project" onchange="this.form.submit()">
+      {% for p in projects %}<option value="{{ p.pk }}" {% if project and p.pk == project.pk %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+    </select>
+  </label>
+  {% if ranged %}
+  <label class="muted">From<br><input type="date" name="from" value="{{ start|date:'Y-m-d' }}"></label>
+  <label class="muted">To<br><input type="date" name="to" value="{{ end|date:'Y-m-d' }}"></label>
+  <button type="submit">Show</button>
+  {% endif %}
+  {% if project %}
+  <button type="submit" name="format" value="xlsx" style="background:#067647">Download Excel</button>
+  <button type="button" onclick="window.print()" style="background:#fff;color:#1f3864;border:1px solid #1f3864">Print / save as PDF</button>
+  {% endif %}
+</form>
+{% if ranged %}
+<p class="noprint muted" style="margin:0 0 10px">Quick periods:
+  {% for label, a, b in presets %}<a href="?project={{ project.pk }}&from={{ a|date:'Y-m-d' }}&to={{ b|date:'Y-m-d' }}">{{ label }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}
+</p>
+{% endif %}

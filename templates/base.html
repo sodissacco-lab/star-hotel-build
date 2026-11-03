@@ -45,6 +45,7 @@
     .fw button.big { width:100%; padding:14px; font-size:1.05rem; margin-top:14px; }
     .fw button.alt { background:#fff; color:var(--navy); border:1px solid var(--navy); }
     .fw .fielderr { color:var(--bad); font-size:.85rem; }
+    @media print { header, .noprint, .msg { display:none !important; } body { background:#fff; } main { max-width:none; padding:0; } .card, table { break-inside:avoid; } h2 { break-after:avoid; } }
     .seg label { display:inline-block; margin:0 8px 0 0; color:var(--text); font-size:1rem; }
   </style>
 </head>
@@ -58,6 +59,7 @@
       <a href="{% url 'budget_report' %}{% if project %}?project={{ project.pk }}{% endif %}">Budget</a>
       <a href="{% url 'boq_report' %}{% if project %}?project={{ project.pk }}{% endif %}">BOQ</a>
       <a href="{% url 'labour_report' %}{% if project %}?project={{ project.pk }}{% endif %}">Labour</a>
+      <a href="{% url 'reports_index' %}{% if project %}?project={{ project.pk }}{% endif %}">Reports</a>
       <a href="{% url 'supplier_list' %}{% if project %}?project={{ project.pk }}{% endif %}">Suppliers</a>
       <a href="{% url 'receipt_list' %}{% if project %}?project={{ project.pk }}{% endif %}">Receipts</a>
       <a href="{% url 'doc_gallery' %}{% if project %}?project={{ project.pk }}{% endif %}">Files</a>

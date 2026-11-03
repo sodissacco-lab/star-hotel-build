@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Progress report – StarBuild{% endblock %}
+{% block content %}
+{% include "reports/_filters.html" %}
+{% if not project %}<p>No project is available to you yet.</p>{% else %}
+<h1>Progress report – {{ project.name }}</h1>
+<p class="muted">{{ start|date:"d M Y" }} to {{ end|date:"d M Y" }} · Overall completion {{ progress }}%</p>
+
+<div class="grid">
+  <div class="card"><div class="label">Worker-days</div><div class="value">{{ attendance.worker_days }}</div></div>
+  <div class="card"><div class="label">Different workers</div><div class="value">{{ attendance.workers }}</div></div>
+  <div class="card"><div class="label">Overtime hours</div><div class="value">{{ attendance.overtime_hours|floatformat:"-1" }}</div></div>
+  <div class="card"><div class="label">Spent (approved)</div><div class="value">UGX {{ spend_total|floatformat:0 }}</div></div>
+  <div class="card"><div class="label">Materials received</div><div class="value">UGX {{ stock.received|floatformat:0 }}</div></div>
+  <div class="card"><div class="label">Materials issued</div><div class="value">UGX {{ stock.issued|floatformat:0 }}</div></div>
+  <div class="card"><div class="label">Wastage</div><div class="value {% if stock.wasted %}bad{% endif %}">UGX {{ stock.wasted|floatformat:0 }}</div></div>
+  <div class="card"><div class="label">Deliveries booked in</div><div class="value">{{ stock.deliveries }}</div></div>
+</div>
+{% if diaries_missing %}<p class="bad">No site diary for: {% for d in diaries_missing %}{{ d|date:"D d/m" }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+{% if direct_pending %}<p class="bad">{{ direct_pending }} delivery(ies) without an order still waiting for approval.</p>{% endif %}
+
+<h2>Day by day</h2>
+<div class="table-wrap"><table>
+  <tr><th>Date</th><th>Weather</th><th class="num">Workers (diary)</th><th class="num">Workers (attendance)</th><th>Diary</th></tr>
+  {% for d in days %}<tr><td>{{ d.date|date:"D d/m/Y" }}</td><td>{{ d.weather|default:"–" }}</td>
+    <td class="num">{{ d.diary_workers|default_if_none:"–" }}</td><td class="num">{{ d.attendance }}</td>
+    <td>{% if d.diary %}<span class="ok">Written</span>{% else %}<span class="bad">Missing</span>{% endif %}</td></tr>{% endfor %}
+</table></div>
+
+<h2>Work done</h2>
+<div class="table-wrap"><table>
+  <tr><th>Date</th><th>Component</th><th>Section</th><th>Activity</th><th>Completed</th></tr>
+  {% for a in activities %}<tr><td>{{ a.date|date:"d/m" }}</td><td>{{ a.phase|default:"–" }}</td><td>{{ a.location|default:"–" }}</td><td>{{ a.description }}</td><td>{{ a.completed|default:"–" }}</td></tr>
+  {% empty %}<tr><td colspan="5" class="muted">No activities recorded in this period.</td></tr>{% endfor %}
+</table></div>
+
+{% if problems %}
+<h2>Problems, safety and instructions</h2>
+<div class="table-wrap"><table>
+  <tr><th>Date</th><th>Challenges</th><th>Safety incidents</th><th>Instructions issued</th></tr>
+  {% for p in problems %}<tr><td>{{ p.date|date:"d/m" }}</td><td>{{ p.challenges|default:"–" }}</td><td class="{% if p.safety %}bad{% endif %}">{{ p.safety|default:"–" }}</td><td>{{ p.instructions|default:"–" }}</td></tr>{% endfor %}
+</table></div>
+{% endif %}
+
+<h2>Building components</h2>
+<div class="table-wrap"><table>
+  <tr><th>Component</th><th>Progress</th><th class="num">%</th><th>Status</th></tr>
+  {% for p in phases %}<tr><td>{{ p.name }}</td><td style="width:35%"><div class="bar"><span style="width:{{ p.percent_complete }}%"></span></div></td>
+    <td class="num">{{ p.percent_complete|floatformat:0 }}</td><td>{% if p.is_delayed %}<span class="bad">Delayed</span>{% elif p.percent_complete == 100 %}<span class="ok">Complete</span>{% else %}–{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="4" class="muted">No components yet.</td></tr>{% endfor %}
+</table></div>
+
+{% if spend_rows %}
+<h2>Spending in the period</h2>
+<div class="table-wrap"><table>
+  <tr><th>Category</th><th class="num">UGX</th></tr>
+  {% for r in spend_rows %}<tr><td>{{ r.label }}</td><td class="num">{{ r.total|floatformat:0 }}</td></tr>{% endfor %}
+  <tr><th>Total</th><th class="num">{{ spend_total|floatformat:0 }}</th></tr>
+</table></div>
+{% endif %}
+{% endif %}
+{% endblock %}

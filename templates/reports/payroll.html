@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Payroll and contractors – StarBuild{% endblock %}
+{% block content %}
+{% include "reports/_filters.html" %}
+{% if not project %}<p>No project is available to you yet.</p>{% else %}
+<h1>Payroll and contractor payments – {{ project.name }}</h1>
+<p class="muted">{{ start|date:"d M Y" }} to {{ end|date:"d M Y" }}. Only approved records are counted.</p>
+<div class="grid">
+  <div class="card"><div class="label">Wages (gross)</div><div class="value">UGX {{ totals.gross|floatformat:0 }}</div></div>
+  <div class="card"><div class="label">Wages paid (net)</div><div class="value">UGX {{ totals.net|floatformat:0 }}</div></div>
+  <div class="card"><div class="label">Salary advances given</div><div class="value">UGX {{ totals.worker_advances|floatformat:0 }}</div></div>
+  <div class="card"><div class="label">Work certified</div><div class="value">UGX {{ totals.certified|floatformat:0 }}</div></div>
+  <div class="card"><div class="label">Certificates (net)</div><div class="value">UGX {{ totals.certificate_net|floatformat:0 }}</div></div>
+  <div class="card"><div class="label">Mobilisation advances</div><div class="value">UGX {{ totals.mobilisation|floatformat:0 }}</div></div>
+</div>
+
+<h2>Payrolls</h2>
+<div class="table-wrap"><table>
+  <tr><th>Number</th><th>Period</th><th class="num">Workers</th><th class="num">Gross</th><th class="num">Advance deducted</th><th class="num">Net paid</th></tr>
+  {% for r in payrolls %}<tr><td>{{ r.payroll.number }}</td><td>{{ r.payroll.period_start|date:"d/m" }} – {{ r.payroll.period_end|date:"d/m/Y" }}</td>
+    <td class="num">{{ r.workers }}</td><td class="num">{{ r.gross|floatformat:0 }}</td><td class="num">{{ r.deductions|floatformat:0 }}</td><td class="num">{{ r.net|floatformat:0 }}</td></tr>
+  {% empty %}<tr><td colspan="6" class="muted">No approved payroll in this period.</td></tr>{% endfor %}
+</table></div>
+
+{% if advances %}
+<h2>Salary advances</h2>
+<div class="table-wrap"><table>
+  <tr><th>Number</th><th>Date</th><th>Worker</th><th class="num">Amount</th><th>Reason</th></tr>
+  {% for a in advances %}<tr><td>{{ a.number }}</td><td>{{ a.date|date:"d/m/Y" }}</td><td>{{ a.worker.full_name }}</td><td class="num">{{ a.amount|floatformat:0 }}</td><td>{{ a.reason|default:"–" }}</td></tr>{% endfor %}
+</table></div>
+{% endif %}
+
+<h2>Payment certificates</h2>
+<div class="table-wrap"><table>
+  <tr><th>Number</th><th>Date</th><th>Contractor</th><th>Work certified</th><th class="num">Gross</th><th class="num">Retention</th><th class="num">Advance recovered</th><th class="num">Net</th></tr>
+  {% for c in certificates %}<tr><td>{{ c.number }}</td><td>{{ c.date|date:"d/m/Y" }}</td><td>{{ c.contract.contractor.name }}</td><td>{{ c.description }}</td>
+    <td class="num">{{ c.gross_amount|floatformat:0 }}</td><td class="num">{{ c.retention_amount|floatformat:0 }}</td><td class="num">{{ c.advance_recovered|floatformat:0 }}</td><td class="num">{{ c.net_amount|floatformat:0 }}</td></tr>
+  {% empty %}<tr><td colspan="8" class="muted">No approved certificates in this period.</td></tr>{% endfor %}
+</table></div>
+
+{% if mobilisations %}
+<h2>Mobilisation advances</h2>
+<div class="table-wrap"><table>
+  <tr><th>Number</th><th>Date</th><th>Contractor</th><th class="num">Amount</th><th>Purpose</th></tr>
+  {% for m in mobilisations %}<tr><td>{{ m.number }}</td><td>{{ m.date|date:"d/m/Y" }}</td><td>{{ m.contract.contractor.name }}</td><td class="num">{{ m.amount|floatformat:0 }}</td><td>{{ m.purpose }}</td></tr>{% endfor %}
+</table></div>
+{% endif %}
+
+<h2>Contracts to date</h2>
+<div class="table-wrap"><table>
+  <tr><th>Contractor</th><th class="num">Contract</th><th class="num">Certified</th><th class="num">%</th><th class="num">Retention held</th><th class="num">Advance outstanding</th><th class="num">Paid</th><th class="num">Unpaid</th></tr>
+  {% for r in contracts %}<tr><td>{{ r.contract.contractor.name }}</td><td class="num">{{ r.contract.amount|floatformat:0 }}</td><td class="num">{{ r.certified|floatformat:0 }}</td>
+    <td class="num">{{ r.percent|floatformat:0 }}</td><td class="num">{{ r.retention|floatformat:0 }}</td><td class="num">{{ r.advance_outstanding|floatformat:0 }}</td>
+    <td class="num">{{ r.paid|floatformat:0 }}</td><td class="num {% if r.unpaid > 0 %}bad{% endif %}">{{ r.unpaid|floatformat:0 }}</td></tr>
+  {% empty %}<tr><td colspan="8" class="muted">No contracts yet.</td></tr>{% endfor %}
+</table></div>
+{% endif %}
+{% endblock %}

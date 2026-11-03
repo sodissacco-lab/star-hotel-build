@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "fieldwork",
     "documents",
     "notifications",
+    "reports",
 ]
 
 MIDDLEWARE = [

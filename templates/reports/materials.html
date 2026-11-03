@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Materials movement – StarBuild{% endblock %}
+{% block content %}
+{% include "reports/_filters.html" %}
+{% if not project %}<p>No project is available to you yet.</p>{% else %}
+<h1>Materials movement – {{ project.name }}</h1>
+<p class="muted">{{ start|date:"d M Y" }} to {{ end|date:"d M Y" }}. Opening + received + returned ± adjustments − issued − wasted = closing.</p>
+<div class="table-wrap"><table>
+  <tr><th>Material</th><th class="num">Opening</th><th class="num">Received</th><th class="num">Issued</th><th class="num">Returned</th>
+      <th class="num">Adjusted</th><th class="num">Wasted</th><th class="num">Closing</th><th class="num">Received UGX</th><th class="num">Issued UGX</th><th class="num">Wasted UGX</th></tr>
+  {% for r in rows %}<tr>
+    <td>{{ r.material.name }} <span class="muted">({{ r.material.unit }})</span></td>
+    <td class="num">{{ r.opening|floatformat:"-3" }}</td><td class="num">{{ r.received|floatformat:"-3" }}</td>
+    <td class="num">{{ r.issued|floatformat:"-3" }}</td><td class="num">{{ r.returned|floatformat:"-3" }}</td>
+    <td class="num">{{ r.adjusted|floatformat:"-3" }}</td><td class="num {% if r.wasted %}bad{% endif %}">{{ r.wasted|floatformat:"-3" }}</td>
+    <td class="num"><b>{{ r.closing|floatformat:"-3" }}</b></td>
+    <td class="num">{{ r.received_value|floatformat:0 }}</td><td class="num">{{ r.issued_value|floatformat:0 }}</td><td class="num">{{ r.wasted_value|floatformat:0 }}</td></tr>
+  {% empty %}<tr><td colspan="11" class="muted">No stock movements up to this date.</td></tr>{% endfor %}
+  {% if rows %}<tr><th colspan="8" class="num">Totals (UGX)</th><th class="num">{{ totals.received_value|floatformat:0 }}</th><th class="num">{{ totals.issued_value|floatformat:0 }}</th><th class="num">{{ totals.wasted_value|floatformat:0 }}</th></tr>{% endif %}
+</table></div>
+{% if wastage %}
+<h2>Wastage and losses</h2>
+<div class="table-wrap"><table>
+  <tr><th>Date</th><th>Material</th><th class="num">Quantity</th><th>Reason</th><th>Where</th><th>Responsible</th><th class="num">UGX</th></tr>
+  {% for w in wastage %}<tr><td>{{ w.date|date:"d/m/Y" }}</td><td>{{ w.material.name }}</td><td class="num">{{ w.quantity|floatformat:"-3" }} {{ w.material.unit }}</td>
+    <td>{{ w.get_reason_display }}</td><td>{{ w.location|default:"–" }}</td><td>{{ w.responsible|default:"–" }}</td><td class="num">{{ w.value|floatformat:0 }}</td></tr>{% endfor %}
+</table></div>
+{% endif %}
+{% endif %}
+{% endblock %}

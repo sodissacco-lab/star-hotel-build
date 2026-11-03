@@ -29,4 +29,5 @@ urlpatterns = [
     path("files/", include("documents.urls")),
     path("site/", include("fieldwork.urls")),
     path("labour/", workforce_views.labour_report, name="labour_report"),
+    path("reports/", include("reports.urls")),
 ]

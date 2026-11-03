@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Budget against actual – StarBuild{% endblock %}
+{% block content %}
+{% include "reports/_filters.html" %}
+{% if not project %}<p>No project is available to you yet.</p>{% else %}
+<h1>Budget against actual – {{ project.name }}</h1>
+<p class="muted">Spending counts approved expenses only. Approved project budget: UGX {{ approved_budget|floatformat:0 }}.
+{% if unbudgeted_total %}Budget lines add up to UGX {{ total.budget|floatformat:0 }}, which is UGX {{ unbudgeted_total|floatformat:0 }} {% if unbudgeted_total > 0 %}less{% else %}more{% endif %} than the approved budget.{% endif %}</p>
+<h2>By category</h2>
+<div class="table-wrap"><table>
+  <tr><th>Category</th><th class="num">Budget</th><th class="num">Spent</th><th class="num">Remaining</th><th class="num">% used</th><th></th></tr>
+  {% for r in categories %}<tr><td>{{ r.label }}</td><td class="num">{{ r.budget|floatformat:0 }}</td><td class="num">{{ r.spent|floatformat:0 }}</td>
+    <td class="num {% if r.variance < 0 %}bad{% endif %}">{{ r.variance|floatformat:0 }}</td><td class="num">{% if r.pct is not None %}{{ r.pct|floatformat:0 }}%{% else %}–{% endif %}</td>
+    <td class="bad">{{ r.status }}</td></tr>
+  {% empty %}<tr><td colspan="6" class="muted">No budget or spending recorded yet.</td></tr>{% endfor %}
+  <tr><th>Total</th><th class="num">{{ total.budget|floatformat:0 }}</th><th class="num">{{ total.spent|floatformat:0 }}</th>
+    <th class="num {% if total.variance < 0 %}bad{% endif %}">{{ total.variance|floatformat:0 }}</th><th class="num">{% if total.pct is not None %}{{ total.pct|floatformat:0 }}%{% endif %}</th><th></th></tr>
+</table></div>
+<h2>By building component</h2>
+<div class="table-wrap"><table>
+  <tr><th>Component</th><th class="num">Budget</th><th class="num">Spent</th><th class="num">Remaining</th><th class="num">% used</th><th></th></tr>
+  {% for r in phases %}<tr><td>{{ r.label }}</td><td class="num">{{ r.budget|floatformat:0 }}</td><td class="num">{{ r.spent|floatformat:0 }}</td>
+    <td class="num {% if r.variance < 0 %}bad{% endif %}">{{ r.variance|floatformat:0 }}</td><td class="num">{% if r.pct is not None %}{{ r.pct|floatformat:0 }}%{% else %}–{% endif %}</td>
+    <td class="bad">{{ r.status }}</td></tr>
+  {% empty %}<tr><td colspan="6" class="muted">No component budgets or spending yet.</td></tr>{% endfor %}
+</table></div>
+{% endif %}
+{% endblock %}

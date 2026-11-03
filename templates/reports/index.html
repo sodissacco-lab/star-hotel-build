@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Reports – StarBuild{% endblock %}
+{% block content %}
+<h1>Reports{% if project %} – {{ project.name }}{% endif %}</h1>
+<p class="muted">Each report can be viewed here, downloaded as Excel, or printed and saved as a PDF.</p>
+<div class="tiles">
+  {% if site_staff %}
+  <a class="tile" href="{% url 'report_progress' %}{% if project %}?project={{ project.pk }}{% endif %}"><b>Progress report</b>Work done, workers on site, problems and spending for a week or any period.</a>
+  <a class="tile" href="{% url 'report_materials' %}{% if project %}?project={{ project.pk }}{% endif %}"><b>Materials movement</b>Opening stock, received, issued, wasted and closing stock for each material.</a>
+  {% endif %}
+  {% if can_finance %}<a class="tile" href="{% url 'report_budget' %}{% if project %}?project={{ project.pk }}{% endif %}"><b>Budget against actual</b>What was budgeted and spent, by category and by building component.</a>{% endif %}
+  {% if can_labour %}<a class="tile" href="{% url 'report_payroll' %}{% if project %}?project={{ project.pk }}{% endif %}"><b>Payroll and contractors</b>Wages, salary advances, certificates and contract balances.</a>{% endif %}
+</div>
+<h2>Other reports</h2>
+<p><a href="{% url 'stock_report' %}{% if project %}?project={{ project.pk }}{% endif %}">Stock position</a> ·
+   <a href="{% url 'supplier_list' %}{% if project %}?project={{ project.pk }}{% endif %}">Suppliers</a> ·
+   <a href="{% url 'boq_report' %}{% if project %}?project={{ project.pk }}{% endif %}">Bill of quantities</a> ·
+   <a href="{% url 'labour_report' %}{% if project %}?project={{ project.pk }}{% endif %}">Labour</a></p>
+{% endblock %}
