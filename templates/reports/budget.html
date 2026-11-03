@@ -2,6 +2,7 @@
 {% block title %}Budget against actual – StarBuild{% endblock %}
 {% block content %}
 {% include "reports/_filters.html" %}
+{% include "reports/_logo.html" %}
 {% if not project %}<p>No project is available to you yet.</p>{% else %}
 <h1>Budget against actual – {{ project.name }}</h1>
 <p class="muted">Spending counts approved expenses only. Approved project budget: UGX {{ approved_budget|floatformat:0 }}.

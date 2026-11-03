@@ -2,6 +2,7 @@
 {% block title %}Progress report – StarBuild{% endblock %}
 {% block content %}
 {% include "reports/_filters.html" %}
+{% include "reports/_logo.html" %}
 {% if not project %}<p>No project is available to you yet.</p>{% else %}
 <h1>Progress report – {{ project.name }}</h1>
 <p class="muted">{{ start|date:"d M Y" }} to {{ end|date:"d M Y" }} · Overall completion {{ progress }}%</p>

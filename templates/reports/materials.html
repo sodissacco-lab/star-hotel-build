@@ -2,6 +2,7 @@
 {% block title %}Materials movement – StarBuild{% endblock %}
 {% block content %}
 {% include "reports/_filters.html" %}
+{% include "reports/_logo.html" %}
 {% if not project %}<p>No project is available to you yet.</p>{% else %}
 <h1>Materials movement – {{ project.name }}</h1>
 <p class="muted">{{ start|date:"d M Y" }} to {{ end|date:"d M Y" }}. Opening + received + returned ± adjustments − issued − wasted = closing.</p>
