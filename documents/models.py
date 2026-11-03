@@ -43,6 +43,8 @@ class Attachment(AuditedModel):
                               related_name="attachments", help_text="Link to a site diary day (optional)")
     purchase_order = models.ForeignKey("inventory.PurchaseOrder", null=True, blank=True, on_delete=models.SET_NULL,
                                        related_name="attachments", help_text="Link to a purchase order (optional)")
+    direct_delivery = models.ForeignKey("procurement.DirectDelivery", null=True, blank=True, editable=False,
+                                        on_delete=models.SET_NULL, related_name="attachments")
 
     class Meta:
         ordering = ["-created_at", "-id"]

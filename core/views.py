@@ -8,7 +8,13 @@ from accounts.permissions import can
 from finance import supplier
 from finance.models import Category, Expense, Payment, PaymentAllocation
 from inventory import services
+from django.utils import timezone
+
+from inventory.models import GoodsReceipt, MaterialIssue
+from notifications import services as alerts
+from procurement.models import DirectDelivery
 from projects.models import SiteDiary
+from workforce.models import Attendance
 
 ZERO = Decimal("0")
 
@@ -68,5 +74,16 @@ def dashboard(request):
         phases=phases,
         delayed=[p for p in phases if p.is_delayed],
         recent_diaries=SiteDiary.objects.filter(project=project).select_related("supervisor")[:5],
+    )
+    today = timezone.localdate()
+    alerts.refresh(request.user)
+    ctx.update(
+        attention=list(alerts.active(request.user)[:12]),
+        today=today,
+        today_diary=SiteDiary.objects.filter(project=project, date=today).first(),
+        today_present=Attendance.objects.filter(worker__project=project, date=today, status="present").count(),
+        today_issues=MaterialIssue.objects.filter(project=project, issue_date=today, posted=True).count(),
+        today_receipts=GoodsReceipt.objects.filter(po__project=project, receipt_date=today, posted=True).count(),
+        pending_direct=DirectDelivery.objects.filter(project=project, status=DirectDelivery.Status.PENDING).count(),
     )
     return render(request, "dashboard.html", ctx)

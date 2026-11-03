@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.core.cache import cache
 from django.test import TestCase
 from rest_framework.test import APIClient
 
@@ -32,6 +33,9 @@ class APITestBase(TestCase):
         cls.cement = Material.objects.create(code="C1", name="Cement", category=cat, unit=unit, standard_price=D("38000"))
         cls.worker = Worker.objects.create(project=cls.project, full_name="Okello", daily_wage=D("20000"))
         cls.worker2 = Worker.objects.create(project=cls.project, full_name="Akello", daily_wage=D("20000"))
+
+    def setUp(self):
+        cache.clear()  # the login limit (30 a minute) is counted in the cache and would trip across many tests
 
     def login(self, username):
         client = APIClient()

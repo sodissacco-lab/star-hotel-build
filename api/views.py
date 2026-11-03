@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 
 from accounts.permissions import WorkflowError, can
 from api import serializers as s
+from api.idempotency import idempotent
 from api.permissions import capability
 from boq import services as boq_services
 from finance import supplier as supplier_services
@@ -123,6 +124,7 @@ class DiaryListCreateView(APIView):
         diaries = project.diaries.prefetch_related("activities").select_related("created_by")[:60]
         return Response(s.SiteDiarySerializer(diaries, many=True, context={"project": project}).data)
 
+    @idempotent
     def post(self, request, pk):
         project = project_for(request, pk)
         ser = s.SiteDiarySerializer(data=request.data, context={"request": request, "project": project})
@@ -153,6 +155,7 @@ class AttendanceView(APIView):
             qs = qs.filter(date=date)
         return Response(s.AttendanceSerializer(qs[:500], many=True).data)
 
+    @idempotent
     def post(self, request, pk):
         """Record (or correct) a whole day's attendance in one call."""
         project = project_for(request, pk)
@@ -183,6 +186,7 @@ class RequisitionListCreateView(APIView):
             qs = qs.filter(status=request.query_params["status"])
         return Response(s.RequisitionSerializer(qs[:100], many=True, context={"project": project}).data)
 
+    @idempotent
     def post(self, request, pk):
         project = project_for(request, pk)
         ser = s.RequisitionSerializer(data=request.data, context={"request": request, "project": project})

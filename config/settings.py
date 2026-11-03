@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "api",
     "fieldwork",
     "documents",
+    "notifications",
 ]
 
 MIDDLEWARE = [
@@ -141,6 +142,45 @@ STORAGES = {
 }
 MEDIA_URL = "media/"
 MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT", BASE_DIR / "media"))  # on Render: the persistent disk
+
+# Photos and documents are kept in a private Cloudflare R2 bucket when R2_BUCKET is set (they are only ever
+# served through the login-checked views). Without it they stay on the local / Render disk.
+R2_BUCKET = os.environ.get("R2_BUCKET", "")
+if R2_BUCKET:
+    _r2 = {k: os.environ.get(k, "") for k in ("R2_ENDPOINT_URL", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY")}
+    _missing = [k for k, v in _r2.items() if not v]
+    if _missing:
+        raise ImproperlyConfigured("R2_BUCKET is set, so also set: " + ", ".join(_missing))
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": R2_BUCKET,
+            "endpoint_url": _r2["R2_ENDPOINT_URL"],
+            "access_key": _r2["R2_ACCESS_KEY_ID"],
+            "secret_key": _r2["R2_SECRET_ACCESS_KEY"],
+            "region_name": "auto",
+            "signature_version": "s3v4",
+            "default_acl": None,
+            "querystring_auth": True,
+            "file_overwrite": False,
+        },
+    }
+
+# Nightly backups: how many copies to keep (the oldest are deleted).
+BACKUP_KEEP = int(os.environ.get("BACKUP_KEEP", "30"))
+
+# E-mail (alerts to people with approvals or problems waiting). Without EMAIL_HOST the messages are only printed.
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
+EMAIL_BACKEND = os.environ.get(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.smtp.EmailBackend" if EMAIL_HOST else "django.core.mail.backends.console.EmailBackend",
+)
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "1") == "1"
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "StarBuild <no-reply@taajpalm.com>")
+SITE_URL = os.environ.get("SITE_URL", "https://taajpalm.com")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

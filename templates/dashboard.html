@@ -14,6 +14,22 @@
   </form>
   <h1>{{ project.name }} <span class="muted" style="font-size:.9rem">· {{ project.city }} · {{ project.get_star_target_display }}</span></h1>
 
+  {% if attention %}
+  <h2>Needs your attention</h2>
+  <div class="table-wrap"><table>
+    {% for n in attention %}<tr><td class="{% if not n.read_at %}bad{% endif %}">{{ n.title }}<br><span class="muted">{{ n.body }}</span></td></tr>{% endfor %}
+  </table></div>
+  {% endif %}
+
+  <h2>Today on site · {{ today|date:"d/m/Y" }}</h2>
+  <div class="grid">
+    <div class="card"><div class="label">Workers present</div><div class="value">{{ today_present }}</div></div>
+    <div class="card"><div class="label">Site diary</div><div class="value">{% if today_diary %}<span class="ok">Written</span>{% else %}<span class="bad">Not yet</span>{% endif %}</div></div>
+    <div class="card"><div class="label">Deliveries received</div><div class="value">{{ today_receipts }}</div></div>
+    <div class="card"><div class="label">Store issues</div><div class="value">{{ today_issues }}</div></div>
+    <div class="card"><div class="label">Deliveries without an order, waiting</div><div class="value {% if pending_direct %}bad{% endif %}">{{ pending_direct }}</div></div>
+  </div>
+
   <div class="grid">
     {% if show_finance %}
     <div class="card"><div class="label">Approved budget</div><div class="value">UGX {{ budget|floatformat:0 }}</div></div>

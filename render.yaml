@@ -30,6 +30,39 @@ services:
         fromDatabase:
           name: starbuild-db
           property: connectionString
+      - fromGroup: starbuild-secrets
+
+  # Runs once a day at 07:30 East Africa time: saves a backup of all records and e-mails the alerts.
+  - type: cron
+    name: starbuild-daily
+    runtime: python
+    plan: starter
+    region: frankfurt
+    schedule: "30 4 * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python manage.py backup_data && python manage.py send_alerts
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: DJANGO_DEBUG
+        value: "0"
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DJANGO_ALLOWED_HOSTS
+        value: taajpalm.com,www.taajpalm.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: starbuild-db
+          property: connectionString
+      - fromGroup: starbuild-secrets
+
+envVarGroups:
+  # Create the values in the Render dashboard (Environment > Environment Groups): R2_BUCKET, R2_ENDPOINT_URL,
+  # R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, DEFAULT_FROM_EMAIL.
+  - name: starbuild-secrets
+    envVars:
+      - key: BACKUP_KEEP
+        value: "30"
 
 databases:
   - name: starbuild-db

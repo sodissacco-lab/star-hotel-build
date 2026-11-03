@@ -20,7 +20,7 @@ STORES = ["materialcategory", "unit", "supplier", "material", "purchaseorder", "
           "goodsreceiptline", "materialissue", "materialissueline", "materialreturn", "wastagerecord",
           "stockadjustment", "stockledger"]
 BOQ = ["boqitem", "boqmeasurement", "variation"]
-PROC = ["requisition", "requisitionline", "quotation"]
+PROC = ["requisition", "requisitionline", "quotation", "directdelivery", "directdeliveryline"]
 FIN = ["budget", "expense", "payment", "demandnote", "receipt"]
 LABOUR = ["contractor", "contract", "paymentcertificate", "worker", "attendance", "payroll", "payrollline",
           "contractoradvance", "workeradvance"]

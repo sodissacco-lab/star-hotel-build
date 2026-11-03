@@ -20,6 +20,8 @@ CAPABILITIES = {
     "verify_requisition": {R.ADMIN, R.QUANTITY_SURVEYOR},
     "approve_requisition": {R.ADMIN, R.OWNER, R.PROJECT_MANAGER},
     "create_po": {R.ADMIN, R.PROCUREMENT, R.PROJECT_MANAGER},
+    # goods received without a purchase order: recorded on site (receive_goods), approved here
+    "approve_direct_delivery": {R.ADMIN, R.OWNER, R.PROJECT_MANAGER},
     # BOQ
     "approve_variation": {R.ADMIN, R.OWNER, R.PROJECT_MANAGER},
     "manage_boq": {R.ADMIN, R.QUANTITY_SURVEYOR, R.PROJECT_MANAGER},
